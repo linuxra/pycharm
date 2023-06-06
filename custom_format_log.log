@@ -1,0 +1,66 @@
+2023-05-04 07:41:43,523 [INFO] my_module: This is an info message with a custom format
+2023-05-04 07:41:43,523 [WARNING] my_module: This is a warning message with a custom format
+2023-05-04 07:41:43,523 [ERROR] my_module: This is an error message with a custom format
+2023-05-04 07:41:43,523 [INFO] my_module: Calling function 'add' with args: (10, 9) and kwargs: {}
+2023-05-04 07:41:43,523 [INFO] my_module: Function 'add' returned: 19
+2023-05-04 07:41:43,523 [INFO] my_module: 19
+2023-05-07 11:26:59,250 [INFO] my_module: This is an info message with a custom format
+2023-05-07 11:26:59,250 [WARNING] my_module: This is a warning message with a custom format
+2023-05-07 11:26:59,250 [ERROR] my_module: This is an error message with a custom format
+2023-05-07 11:26:59,250 [INFO] my_module: Calling function 'add' with args: (10, 9) and kwargs: {}
+2023-05-07 11:26:59,251 [INFO] my_module: Function 'add' returned: 19
+2023-05-07 11:26:59,251 [INFO] my_module: 19
+2023-05-07 11:28:27,931 [INFO] my_module: This is an info message with a custom format
+2023-05-07 11:28:27,931 [WARNING] my_module: This is a warning message with a custom format
+2023-05-07 11:28:27,932 [ERROR] my_module: This is an error message with a custom format
+2023-05-07 11:28:27,932 [INFO] my_module: Calling function 'add' with args: (10, 9) and kwargs: {}
+2023-05-07 11:28:27,932 [INFO] my_module: Function 'add' returned: 19
+2023-05-07 11:28:27,932 [INFO] my_module: 19
+2023-05-07 11:33:23,418 [INFO] my_module: This is an info message with a custom format
+2023-05-07 11:33:23,418 [WARNING] my_module: This is a warning message with a custom format
+2023-05-07 11:33:23,418 [ERROR] my_module: This is an error message with a custom format
+2023-05-07 11:33:23,418 [INFO] my_module: Calling function 'add' with args: (10, 9) and kwargs: {}
+2023-05-07 11:33:23,418 [INFO] my_module: Function 'add' returned: 19
+2023-05-07 11:33:23,418 [INFO] my_module: 19
+2023-05-07 12:20:11,438 [INFO] my_module: This is an info message with a custom format
+2023-05-07 12:20:11,438 [WARNING] my_module: This is a warning message with a custom format
+2023-05-07 12:20:11,438 [ERROR] my_module: This is an error message with a custom format
+2023-05-07 12:20:11,438 [INFO] my_module: Calling function 'add' with args: (10, 9) and kwargs: {}
+2023-05-07 12:20:11,438 [INFO] my_module: Function 'add' returned: 19
+2023-05-07 12:20:11,438 [INFO] my_module: 19
+2023-05-07 12:22:00,118 [INFO] my_module: This is an info message with a custom format
+2023-05-07 12:22:00,118 [WARNING] my_module: This is a warning message with a custom format
+2023-05-07 12:22:00,118 [ERROR] my_module: This is an error message with a custom format
+2023-05-07 12:22:00,118 [INFO] my_module: Calling function 'add' with args: (10, 9) and kwargs: {}
+2023-05-07 12:22:00,118 [INFO] my_module: Function 'add' returned: 19
+2023-05-07 12:22:00,118 [INFO] my_module: 19
+2023-05-07 12:22:57,892 [INFO] my_module: This is an info message with a custom format
+2023-05-07 12:22:57,892 [WARNING] my_module: This is a warning message with a custom format
+2023-05-07 12:22:57,892 [ERROR] my_module: This is an error message with a custom format
+2023-05-07 12:22:57,892 [INFO] my_module: Calling function 'add' with args: (10, 9) and kwargs: {}
+2023-05-07 12:22:57,892 [INFO] my_module: Function 'add' returned: 19
+2023-05-07 12:22:57,892 [INFO] my_module: 19
+2023-05-07 12:23:04,684 [INFO] my_module: This is an info message with a custom format
+2023-05-07 12:23:04,684 [WARNING] my_module: This is a warning message with a custom format
+2023-05-07 12:23:04,684 [ERROR] my_module: This is an error message with a custom format
+2023-05-07 12:23:04,684 [INFO] my_module: Calling function 'add' with args: (10, 9) and kwargs: {}
+2023-05-07 12:23:04,684 [INFO] my_module: Function 'add' returned: 19
+2023-05-07 12:23:04,684 [INFO] my_module: 19
+2023-05-07 12:29:32,257 [INFO] my_module: This is an info message with a custom format
+2023-05-07 12:29:32,257 [WARNING] my_module: This is a warning message with a custom format
+2023-05-07 12:29:32,257 [ERROR] my_module: This is an error message with a custom format
+2023-05-07 12:29:32,257 [INFO] my_module: Calling function 'add' with args: (10, 9) and kwargs: {}
+2023-05-07 12:29:32,257 [INFO] my_module: Function 'add' returned: 19
+2023-05-07 12:29:32,257 [INFO] my_module: 19
+2023-05-07 12:30:23,599 [INFO] my_module: This is an info message with a custom format
+2023-05-07 12:30:23,599 [WARNING] my_module: This is a warning message with a custom format
+2023-05-07 12:30:23,599 [ERROR] my_module: This is an error message with a custom format
+2023-05-07 12:30:23,599 [INFO] my_module: Calling function 'add' with args: (10, 9) and kwargs: {}
+2023-05-07 12:30:23,599 [INFO] my_module: Function 'add' returned: 19
+2023-05-07 12:30:23,599 [INFO] my_module: 19
+2023-05-07 12:33:50,534 [INFO] my_module: This is an info message with a custom format
+2023-05-07 12:33:50,534 [WARNING] my_module: This is a warning message with a custom format
+2023-05-07 12:33:50,534 [ERROR] my_module: This is an error message with a custom format
+2023-05-07 12:33:50,534 [INFO] my_module: Calling function 'add' with args: (10, 9) and kwargs: {}
+2023-05-07 12:33:50,534 [INFO] my_module: Function 'add' returned: 19
+2023-05-07 12:33:50,534 [INFO] my_module: 19
