@@ -1,0 +1,20 @@
+  for key, cell in cell_dict.items():
+            if key[0] == 0:
+                cell.set_text_props(weight='bold', color='white')
+                cell.set_facecolor('#562349')
+                cell.set_fontsize(14)  #
+                cell.set_width(0.1)# Adjust as necessary to fit your needs
+                # Set border thickness to 1.5
+                cell.set_edgecolor('black')  # Set border color to yellow
+            else:
+                if key[1] <= 2:
+                    cell.set_text_props(weight='bold', color='#555555')
+                    cell.set_width(0.1)
+                    cell.set_fontsize(14)  # Adjust as necessary to fit your needs
+                    cell.set_facecolor('#DDF3F5')
+                else:
+                    cell.set_width(0.1)
+                    cell.set_fontsize(12)  # Adjust as necessary to fit your needs
+                    cell.set_text_props(multialignment='left')
+                    cell.set_text_props(weight='bold', color='black')
+                    cell.set_facecolor('#F1F6F9')

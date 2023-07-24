@@ -286,9 +286,11 @@ class DataFrameToPDF(Table):
         table = super().render_mpl_table(table_data, ax=ax_table, header_columns=0, col_width=2.0)
         ax_table.set_title(self.table_title, fontsize=12, weight='bold')
 
-        # Add common title for all plots
-        fig.text(0.5, 0.75, self.plot_title, ha='center', fontsize=16)  # adjust y for proper placement
-
+        #if Add common title for all plots
+        if num_plots == 10:
+            fig.text(0.5, 0.83, self.plot_title, ha='center', fontsize=16)
+        else:
+            fig.text(0.5, 0.75, self.plot_title, ha='center', fontsize=16)
         # Create subplots for each column
         for idx, column in enumerate(df_t.columns):
             ax_plot = plt.subplot2grid((num_rows + 2, 3), (1 + idx // 3, idx % 3))

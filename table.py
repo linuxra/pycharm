@@ -35,7 +35,7 @@ for page in range(pages):
     # Check if the data slice is not empty
     if not data_slice.empty:
         # Create a new figure and set the size to fit the full page
-        fig, ax = plt.subplots(figsize=(12, 11))  # A4 size
+        fig, ax = plt.subplots(figsize=(20, 16))  # A4 size
 
         # Add a title to the figure
         fig.suptitle(f'Data Table - Page {page + 1}', fontsize=24)
@@ -63,23 +63,23 @@ for page in range(pages):
         for key, cell in cell_dict.items():
             if key[0] == 0:
                 cell.set_text_props(weight='bold', color='white')
-                cell.set_facecolor(mcolors.CSS4_COLORS['maroon'])
+                cell.set_facecolor('#4E709D')
                 cell.set_fontsize(14)  #
                 cell.set_width(0.1)# Adjust as necessary to fit your needs
                 # Set border thickness to 1.5
                 cell.set_edgecolor('black')  # Set border color to yellow
             else:
                 if key[1] <= 2:
-                    cell.set_text_props(weight='bold', color='white')
+                    cell.set_text_props(weight='bold', color='black')
                     cell.set_width(0.1)
                     cell.set_fontsize(14)  # Adjust as necessary to fit your needs
-                    cell.set_facecolor('grey')
+                    cell.set_facecolor('#89A4C7')
                 else:
                     cell.set_width(0.1)
                     cell.set_fontsize(12)  # Adjust as necessary to fit your needs
                     cell.set_text_props(multialignment='left')
-                    cell.set_text_props(weight='bold', color='white')
-                    cell.set_facecolor(mcolors.CSS4_COLORS['navy'])
+                    cell.set_text_props(weight='bold', color='black')
+                    cell.set_facecolor('#CDD5E0')
 
             cell.set_linestyle('-')
             cell.set_linewidth(0.1)  # Adjust as necessary to fit your needs

@@ -149,7 +149,7 @@ class Table:
         :param ax: Axes object.
         :param table_data: Data to populate the table.
         """
-        row_colors = ['#f1f1f2', 'w']
+        row_colors = ['#DEBACE', '#FBFACD']
         for (row, col), cell in table.get_celld().items():
             if row == 0:
                 cell.set_facecolor(self.header_facecolor)
@@ -173,10 +173,11 @@ class Table:
             ax.axis('off')
         print(size)
         mpl_table = ax.table(cellText=data.values, bbox=bbox, colLabels=data.columns, **kwargs)
+        mpl_table.scale(2,5)
         self.setup_table(mpl_table, ax, data)
 
         self._style_cells(mpl_table, ax, data)
-        ax.set_title('Data Table', pad=20)
+        ax.set_title('Data Table', pad=2)
         return ax
     def add_annotations(self, annotations: List[str]):
         """Add annotations to the table.
@@ -248,9 +249,9 @@ class Table:
 class TableWithPlots(Table):
     def __init__(self, df: pd.DataFrame, title: str, rows_per_page: int = 24, scale_x: float = 1, scale_y: float = 1.5,
                  first_columns_to_color: int = 1,
-                 header_facecolor: str = '#E61030', first_columns_facecolor: str = '#ADD8E6',
-                 other_columns_facecolor: str = '#FFFFFF',
-                 fig_size: Tuple[float, float] = (20, 11.7 * 0.9)):
+                 header_facecolor: str = '#85586F', first_columns_facecolor: str = '#BA94D1',
+                 other_columns_facecolor: str = '#FDF4F5',
+                 fig_size: Tuple[float, float] = (20, 14.7 * 1)):
         super().__init__(df, title, rows_per_page, scale_x, scale_y, first_columns_to_color,
                          header_facecolor, first_columns_facecolor, other_columns_facecolor, fig_size)
 
@@ -264,25 +265,31 @@ class TableWithPlots(Table):
                 start = page * self.rows_per_page
                 end = (page + 1) * self.rows_per_page
 
-                fig = plt.figure(figsize=(fig_width, fig_height))
+                #fig = plt.figure(figsize=(fig_width, fig_height))
+                fig = plt.figure(figsize=(20, 8.27))
+                fig1 = plt.figure(figsize=(20, 8.27))
 
-                ax_table = plt.subplot2grid((3, 1), (0, 0), fig=fig)
+                ax_table = plt.subplot2grid((5, 1), (0, 0), rowspan=4, fig=fig)
                 ax_table.axis('off')
 
                 table_data = self.df.iloc[start:end]
-                table = super().render_mpl_table(table_data, ax=ax_table, header_columns=0, col_width=2.0)
-
+                table = super().render_mpl_table(table_data, ax=ax_table, header_columns=0, col_width=4.0)
+                #ax_table.scale(2,5)
+                pdf_pages.savefig(fig)
+                plt.close(fig)
+                #fig1 = plt.figure(figsize=(fig_width, fig_height))
                 df_T = table_data.set_index('Score').T
                 num_plots = min(len(df_T.columns), 10)
                 plot_columns = df_T.columns[:num_plots]
 
                 if num_plots > 1:
-                    axs_plots = [plt.subplot2grid((3, 3), (i // 3 + 1, i % 3), fig=fig) for i in range(num_plots)]
+                    axs_plots = [plt.subplot2grid((5, 2), (i // 2 , i % 2), fig=fig1) for i in range(num_plots)]
                 else:
-                    axs_plots = [plt.subplot2grid((3, 1), (1, 0), rowspan=2, fig=fig)]
+                    axs_plots = [plt.subplot2grid((3, 1), (1, 0), rowspan=2, fig=fig1)]
 
                 for i, column in enumerate(plot_columns):
                     ax = axs_plots[i]
+                    ax.set_facecolor('#99A98F')
                     y = df_T[column].values
                     x = np.arange(len(y))
                     y = df_T[column].values
@@ -291,13 +298,13 @@ class TableWithPlots(Table):
                     ax.set_title(column)
                     ax.set_xlabel('Quarters')
                     ax.set_ylabel('Values')
-                fig.text(0.5, 0.62, 'My Common Title', ha='center', va='center', fontsize=16)
+                fig1.text(0.5, 0.90, 'My Common Title', ha='center', va='center', fontsize=16)
 
-                fig.suptitle(f'{self.title} (Page {page + 1}/{num_pages})', fontsize=16)
+                fig1.suptitle(f'{self.title} (Page {page + 1}/{num_pages})', fontsize=16)
                 plt.tight_layout(rect=[0, 0, 1, 0.96])  # Adjust for suptitle
-                pdf_pages.savefig(fig, bbox_inches='tight')
+                pdf_pages.savefig(fig1)
 
-                plt.close(fig)
+                plt.close(fig1)
 
     def show(self):
         super().show()
@@ -348,3 +355,15 @@ table = TableWithPlots(df, title='My DataFrame')
 #table.show()
 # Save the table to a PDF
 table.save('my_table.pdf')
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# First, reshape your dataframe to have FICO ranks as index, months as columns, and total acts as values
+heatmap_data = df.pivot(index='FICO_rank', columns='Month', values='Total_acts')
+
+# Plot the heatmap
+plt.figure(figsize=(10, 8))
+sns.heatmap(heatmap_data, cmap="YlGnBu")
+
+plt.title('Total acts by FICO rank over time')
+plt.show()
