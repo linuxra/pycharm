@@ -25,20 +25,27 @@ for col in df.columns[:-1]:  # Exclude 'cat' column
 # Transforming the dataframe for plotting
 df_melted = df.melt(id_vars='cat', var_name='Date', value_name='Percentage')
 
+# Line colors (distinct from marker colors green, yellow, red)
+line_colors = ['blue', 'purple', 'cyan', 'magenta']
+
 # Plotting
 plt.figure(figsize=(15, 8))
-for category in categories:
+for idx, category in enumerate(categories):
     cat_data = df_melted[df_melted['cat'] == category]
-    dates = cat_data['Date']
-    percentages = cat_data['Percentage']
+    dates = cat_data['Date'].tolist()  # Converting to list for proper indexing
+    percentages = cat_data['Percentage'].tolist()  # Converting to list for proper indexing
 
-    # Plotting each segment with its corresponding color
-    for i in range(1, len(dates)):
-        color = assign_color(percentages.iloc[i-1])
-        plt.plot(dates[i-1:i+1], percentages.iloc[i-1:i+1], color=color, marker='o', markersize=6)
+    # Plotting each point with its corresponding marker color
+    for i in range(len(dates)):
+        marker_color = assign_color(percentages[i])
+        plt.scatter(dates[i], percentages[i], color=marker_color, marker='o', s=50)
+
+    # Connecting the points with a line of a unique color
+    plt.plot(dates, percentages, color=line_colors[idx], label=category)
 
 plt.xticks(rotation=45)
 plt.xlabel('Date')
 plt.ylabel('Percentage')
-plt.title('Trended Line Plot of Categories with Conditional Coloring')
+plt.title('Trended Line Plot with Distinct Marker and Line Colors')
+plt.legend()
 plt.show()
