@@ -51,3 +51,44 @@ def create_notebook(markdown_cells, output_path='output_notebook.ipynb'):
 # Usage
 markdown_cells = docx_to_markdown('path/to/your/document.docx')
 create_notebook(markdown_cells)
+from docx import Document
+from io import BytesIO
+from PIL import Image
+
+
+def extract_images(word_doc_path):
+  """
+  Extracts images from a Word document and saves them to a specified folder.
+
+  Args:
+    word_doc_path: Path to the Word document file.
+
+  Returns:
+    A list of extracted image filenames.
+  """
+  doc = Document(word_doc_path)
+  extracted_images = []
+
+  for rel in doc.part.rels.values():
+    if rel.reltype == docx.opc.RELATIONSHIP_TYPE.IMAGE:
+      image_filename = rel.target
+      image_data = doc.part.related_parts[image_filename].blob
+
+      # Save the image to a file
+      img = Image.open(BytesIO(image_data))
+      img_filename = f"extracted_image_{len(extracted_images)}.png"
+      img.save(img_filename)
+
+      extracted_images.append(img_filename)
+
+  return extracted_images
+
+
+if __name__ == "__main__":
+  # Example usage
+  word_doc_path = "your_word_document.docx"
+  extracted_filenames = extract_images(word_doc_path)
+
+  print(f"Extracted {len(extracted_filenames)} images:")
+  for filename in extracted_filenames:
+    print(filename)
