@@ -5,12 +5,20 @@ from IPython.display import display, HTML
 data = {'Product': ['Desktop'], 'Price': [800], 'Units Sold': [150]}
 df = pd.DataFrame(data)
 
+
 # Define your styling function
 def highlight_table(df):
     return df.style.set_table_styles([
-        {'selector': 'thead', 'props': [('border-bottom', '2px solid #ddd')]},
-        {'selector': 'tbody tr', 'props': [('border-bottom', '1px solid #ddd')]}
+
+        {'selector': '',
+         'props': [('border-collapse', 'collapse'), ('border', '1px solid lightgrey')]},
+        {'selector': 'tr:nth-child(even)',
+         'props': [('border-bottom', '1px solid #ddd')]},
+        {'selector': 'tr:nth-child(odd)',
+         'props': [('border-bottom', '2px solid #ddd')]},
+        {'selector': 'th', 'props': [('text-align', 'left'), ('padding', '8px')]}
     ])
+
 
 # Apply the styling function
 styled_df = highlight_table(df)
