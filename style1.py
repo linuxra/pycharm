@@ -62,3 +62,15 @@ centered_html = f"""
 
 # Display in Jupyter Notebook
 display(HTML(centered_html))
+def highlight_table(df):
+    styles = [
+        {'selector': '',
+         'props': [('border-collapse', 'collapse'), ('border', '1px solid lightgrey')]},
+        {'selector': 'tr:nth-child(even)',
+         'props': [('background-color', '#f2f2f2')]},
+        {'selector': 'tr:nth-child(odd)',
+         'props': [('background-color', '#ffffff')]},
+        {'selector': 'th, td',
+         'props': [('text-align', 'center'), ('padding', '8px')]}, # Center text for both th and td
+    ]
+    return df.style.set_table_styles(styles).hide_index()
