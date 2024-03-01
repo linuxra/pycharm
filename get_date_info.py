@@ -104,4 +104,25 @@ directory = 'your_directory_path'
 styled_df = process_csv_files(directory)
 styled_df
 
+import matplotlib.pyplot as plt
+import pandas as pd
+
+def plot_psi_trend(df_summary):
+    # Transform the DataFrame to long format for plotting
+    df_long = df_summary.transpose()
+    df_long = df_long.reset_index()
+    df_long.columns = ['Date', 'PSI']
+    df_long['PSI'] = df_long['PSI'].str.rstrip('%').astype('float')
+
+    # Create the plot
+    plt.figure(figsize=(10, 6))
+    plt.plot(df_long['Date'], df_long['PSI'], marker='o')  # 'o' for circle markers
+    plt.xticks(rotation=45)
+    plt.xlabel('Date (YYYYMM)')
+    plt.ylabel('PSI (%)')
+    plt.title('Trend of PSI over Time')
+    plt.grid(True)
+    plt.tight_layout()
+
+    plt.show()
 
