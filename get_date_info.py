@@ -44,7 +44,7 @@ def generate_monthly_dates(start_date):
 
     # Loop from the start date to the current date
     current = start
-    while current.year < now.year or (current.year == now.year and current.month <= now.month):
+    while current.year < now.year or (current.year == now.year and current.month < now.month):
         # Append the date in YYYYMM format
         dates.append(current.strftime("%Y%m"))
         # Move to the next month
@@ -56,6 +56,47 @@ def generate_monthly_dates(start_date):
     return dates
 
 # Example usage
-start_date = "202201"
+start_date = "202401"
 dates = generate_monthly_dates(start_date)
 print(dates)
+import pandas as pd
+import os
+import re
+from IPython.display import HTML
+
+def process_csv_files(directory):
+    # Initialize an empty DataFrame
+    df_summary = pd.DataFrame()
+
+    # Loop through each file in the directory
+    for filename in os.listdir(directory):
+        if filename.endswith('.csv'):
+            # Extract YYYYMM from the filename
+            yyyymm = re.search(r'(\d{6}).csv$', filename)
+            if yyyymm:
+                yyyymm = yyyymm.group(1)
+                # Read the CSV file
+                file_path = os.path.join(directory, filename)
+                df = pd.read_csv(file_path)
+                # Extract the last PSI value and convert to percentage
+                last_psi_value = round(df['PSI'].iloc[-1] * 100, 2)
+                # Append the data to the summary DataFrame
+                df_summary[yyyymm] = [last_psi_value]
+
+    # Transpose the DataFrame to make YYYYMM as column headers
+    df_summary = df_summary.T
+    df_summary.columns = ['PSI']
+
+    # Function to color the PSI values based on conditions
+    def color_psi(val):
+        color = 'red' if val > 20 else ('yellow' if 10 <= val <= 20 else 'green')
+        return f'color: {color}'
+
+    # Apply the coloring function to the DataFrame
+    styled_df = df_summary.style.applymap(color_psi)
+    return styled_df
+
+# Example usage
+directory = 'your_directory_path'
+styled_df = process_csv_files(directory)
+styled_df
