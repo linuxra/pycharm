@@ -125,4 +125,27 @@ def plot_psi_trend(df_summary):
     plt.tight_layout()
 
     plt.show()
+import seaborn as sns
+import matplotlib.pyplot as plt
+import pandas as pd
+
+def plot_psi_trend(df_summary):
+    # Convert the DataFrame from wide to long format for Seaborn
+    df_long = df_summary.transpose().reset_index()
+    df_long.columns = ['Date', 'PSI']
+    df_long['PSI'] = df_long['PSI'].str.rstrip('%').astype('float')
+
+    # Create the plot using Seaborn
+    plt.figure(figsize=(10, 6))
+    sns.lineplot(x='Date', y='PSI', data=df_long, marker='o')
+
+    # Customize the plot
+    plt.xticks(rotation=45)
+    plt.xlabel('Date (YYYYMM)')
+    plt.ylabel('PSI (%)')
+    plt.title('Trend of PSI over Time')
+    plt.grid(True)
+    plt.tight_layout()
+
+    plt.show()
 
