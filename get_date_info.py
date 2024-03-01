@@ -85,12 +85,14 @@ def process_csv_files(directory):
 
     # Sort the dictionary by keys (YYYYMM) and create a DataFrame
     sorted_keys = sorted(psi_values)
-    sorted_psi_values = {k: psi_values[k] for k in sorted_keys}
-    df_summary = pd.DataFrame(sorted_psi_values, index=[0])
+    sorted_psi_values = {k: f"{psi_values[k]}%" for k in sorted_keys}
+    df_summary = pd.DataFrame(sorted_psi_values, index=['PSI'])
 
     # Function to color the PSI values based on conditions
     def color_psi(val):
-        color = 'red' if val > 20 else ('yellow' if 10 <= val <= 20 else 'green')
+        # Remove the '%' sign and convert to float for comparison
+        numeric_val = float(val[:-1])
+        color = 'red' if numeric_val > 20 else ('yellow' if 10 <= numeric_val <= 20 else 'green')
         return f'color: {color}'
 
     # Apply the coloring function to the DataFrame
@@ -101,4 +103,5 @@ def process_csv_files(directory):
 directory = 'your_directory_path'
 styled_df = process_csv_files(directory)
 styled_df
+
 
