@@ -65,8 +65,8 @@ import re
 from IPython.display import HTML
 
 def process_csv_files(directory):
-    # Initialize an empty DataFrame
-    df_summary = pd.DataFrame()
+    # Initialize an empty dictionary to store the PSI values
+    psi_values = {}
 
     # Loop through each file in the directory
     for filename in os.listdir(directory):
@@ -80,12 +80,13 @@ def process_csv_files(directory):
                 df = pd.read_csv(file_path)
                 # Extract the last PSI value and convert to percentage
                 last_psi_value = round(df['PSI'].iloc[-1] * 100, 2)
-                # Append the data to the summary DataFrame
-                df_summary[yyyymm] = [last_psi_value]
+                # Store the value in the dictionary
+                psi_values[yyyymm] = last_psi_value
 
-    # Transpose the DataFrame to make YYYYMM as column headers
-    df_summary = df_summary.T
-    df_summary.columns = ['PSI']
+    # Sort the dictionary by keys (YYYYMM) and create a DataFrame
+    sorted_keys = sorted(psi_values)
+    sorted_psi_values = {k: psi_values[k] for k in sorted_keys}
+    df_summary = pd.DataFrame(sorted_psi_values, index=[0])
 
     # Function to color the PSI values based on conditions
     def color_psi(val):
@@ -100,3 +101,4 @@ def process_csv_files(directory):
 directory = 'your_directory_path'
 styled_df = process_csv_files(directory)
 styled_df
+
