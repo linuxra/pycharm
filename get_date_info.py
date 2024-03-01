@@ -30,3 +30,32 @@ window = 10
 result = get_date_info(yyyymm, window)
 print(result)
 
+from datetime import datetime, timedelta
+
+def generate_monthly_dates(start_date):
+    # Parse the start date
+    start = datetime.strptime(start_date, "%Y%m")
+
+    # Get the current date
+    now = datetime.now()
+
+    # Generate a list to hold the dates
+    dates = []
+
+    # Loop from the start date to the current date
+    current = start
+    while current.year < now.year or (current.year == now.year and current.month <= now.month):
+        # Append the date in YYYYMM format
+        dates.append(current.strftime("%Y%m"))
+        # Move to the next month
+        if current.month == 12:
+            current = current.replace(year=current.year + 1, month=1)
+        else:
+            current = current.replace(month=current.month + 1)
+
+    return dates
+
+# Example usage
+start_date = "202201"
+dates = generate_monthly_dates(start_date)
+print(dates)
