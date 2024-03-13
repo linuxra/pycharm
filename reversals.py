@@ -124,3 +124,18 @@ for col in rate_columns:
 # Display the formatted DataFrame
 df_calc_reversals_totals
 
+
+def color_yes_red_green_no(val):
+    """
+    Colors 'Yes' red and others green in a DataFrame for display in a Jupyter Notebook.
+    """
+    color = 'red' if val == 'Yes' else 'green'
+    return f'color: {color}'
+
+# Replace df_calc_reversals_totals with your actual DataFrame containing 'major_rev' and 'row_rev' columns
+styled_df = df_calc_reversals_totals.style.applymap(color_yes_red_green_no, subset=['major_rev', 'row_rev'])
+
+# Display the styled DataFrame
+styled_df
+
+
