@@ -93,3 +93,34 @@ def calc_reversals(df):
 
 # Example usage of the function
 # Note: 'df_one_per_dec
+# Apply formatting to both positive and negative percentages
+def format_all_percentage(value):
+    """Formats all values as percentages with brackets for negative values."""
+    if pd.isna(value):  # Handle NaN values
+        return np.nan
+    elif value < 0:
+        return f"({abs(value) * 100:.1f}%)"
+    else:
+        return f"{value * 100:.1f}%"
+
+# Assuming df_calc_reversals_totals is the DataFrame you have
+# Re-creating the DataFrame with dummy data for the example
+df_calc_reversals_totals = pd.DataFrame({
+    'act_bad_rate': [0.023, -0.0034, 0.0045, np.nan],
+    'exp_bad_rate': [0.033, -0.002, 0.0055, np.nan],
+    'variance_event_rate': [0.01, -0.001, 0.006, np.nan],
+    'lower_90_CI': [0.02, -0.004, 0.007, np.nan],
+    'upper_bound': [0.03, -0.005, 0.008, np.nan],
+    'reversal_margin_90CI': [0.025, -0.0035, 0.009, np.nan],
+    'one_side_conf_lb': [0.035, -0.006, 0.01, np.nan]
+})
+
+rate_columns = ['act_bad_rate', 'exp_bad_rate', 'variance_event_rate',
+                'lower_90_CI', 'upper_bound', 'reversal_margin_90CI', 'one_side_conf_lb']
+
+for col in rate_columns:
+    df_calc_reversals_totals[col] = df_calc_reversals_totals[col].apply(format_all_percentage)
+
+# Display the formatted DataFrame
+df_calc_reversals_totals
+
