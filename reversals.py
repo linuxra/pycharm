@@ -138,4 +138,35 @@ styled_df = df_calc_reversals_totals.style.applymap(color_yes_red_green_no, subs
 # Display the styled DataFrame
 styled_df
 
+import os
+import pandas as pd
+
+def process_csv_files(directory, columns, key_columns, percent_column):
+    all_dataframes = []
+    for filename in os.listdir(directory):
+        if filename.endswith('.csv') and 'hrsd' not in filename:
+            df = pd.read_csv(os.path.join(directory, filename), usecols=columns)
+
+            # Apply percentage conversion if the column exists in this df
+            if percent_column in df:
+                df[percent_column] = (df[percent_column] * 100).astype(str) + '%'
+
+            all_dataframes.append(df)
+
+    # Concatenate to form a long DataFrame
+    long_df = pd.concat(all_dataframes)
+
+    # Pivot to create a wide table
+    wide_df = long_df.pivot(index=key_columns[0], columns=key_columns[1:])
+
+    return wide_df
+
+# Example usage
+directory = 'path_to_directory'
+columns = ['column1', 'column2', 'column3']
+key_columns = ['key_column1', 'key_column2']
+percent_column = 'column_to_percent'
+df = process_csv_files(directory, columns, key_columns, percent_column)
+
+
 
