@@ -144,40 +144,53 @@ import pandas as pd
 import os
 import pandas as pd
 
-def process_csv_files(directory, columns, key_columns, percent_column):
+import os
+import pandas as pd
+
+def process_csv_files(directory, columns, percent_column):
     all_dataframes = []
+    periods = [6, 9, 12, 18, 24]  # Define the periods to be considered
+
     for filename in os.listdir(directory):
         if filename.endswith('.csv') and 'hrsd' not in filename:
             df = pd.read_csv(os.path.join(directory, filename), usecols=columns)
 
-            # Apply percentage conversion if the column exists in this DataFrame
+            # Perform the percentage transformation immediately
             if percent_column in df:
-                df[percent_column] = (df[percent_column] * 100).astype(str) + '%'
+                df[percent_column] = ((df[percent_column] * 100).round(2)).astype(str) + '%'
 
             all_dataframes.append(df)
 
-    # Concatenate to form a long DataFrame
+    # Concatenate all the dataframes to create a long DataFrame
     long_df = pd.concat(all_dataframes)
 
-    # Ensure key_columns is a list or a tuple
-    if not isinstance(key_columns, (list, tuple)):
-        key_columns = [key_columns]
+    # Now we create the wide format DataFrame
+    wide_df = pd.DataFrame()
 
-    # Set multi-index if there are multiple key columns
-    if len(key_columns) > 1:
-        long_df.set_index(key_columns, inplace=True)
+    for period in periods:
+        period_df = long_df[long_df['perfw'] == period].copy()
+        period_df.set_index('perfyymm', inplace=True)
 
-    # Pivot to create a wide table
-    wide_df = long_df.pivot_table(index=key_columns[0], columns=key_columns[1:], aggfunc='first')
+        # Rename columns with the period as a suffix
+        period_df.rename(columns=lambda x: f"{x}_{period}mo", inplace=True)
+
+        # Join with the wide DataFrame on 'perfyymm'
+        wide_df = wide_df.join(period_df, on='perfyymm', how='outer')
+
+    # Order columns as per the original data, with percent_column last
+    ordered_cols = [col for col in wide_df.columns if col != percent_column] + [percent_column]
+    wide_df = wide_df[ordered_cols]
 
     return wide_df
 
 # Example usage
 directory = 'path_to_directory'
-columns = ['column1', 'column2', 'column3']
-key_columns = ['key_column1', 'key_column2']
-percent_column = 'column_to_percent'
-df = process_csv_files(directory, columns, key_columns, percent_column)
+columns = ['perfyymm', 'origyymm', 'perfw', 'SD']
+percent_column = 'SD'
+df = process_csv_files(directory, columns, percent_column)
+
+print(df)
+
 
 
 
