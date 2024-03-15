@@ -191,6 +191,89 @@ df = process_csv_files(directory, columns, percent_column)
 
 print(df)
 
+import os
+import pandas as pd
+
+
+def process_csv_files1(directory, columns, percent_column, sort_by, columns_to_drop_prefix):
+    """
+    Processes all CSV files in a specified directory (excluding files with 'hrsd' in the name) to:
+    1. Keep only the specified columns.
+    2. Transform one specified column by multiplying by 100 and converting to a percentage string.
+    3. Combine the data from all CSV files into a single DataFrame, pivoting on a specified 'perfyymm' value.
+    4. Sort the DataFrame by a specified column in descending order.
+    5. Drop columns that start with a specified prefix.
+
+    Parameters:
+    - directory: The directory where CSV files are located.
+    - columns: A list of column names to keep from the CSV files.
+    - percent_column: The name of the column to be converted to a percentage string.
+    - sort_by: The column name to sort the DataFrame by (in descending order).
+    - columns_to_drop_prefix: The prefix of columns to be dropped from the DataFrame.
+
+    Returns:
+    - A pandas DataFrame with the processed data.
+    """
+    # Initialize an empty list to store DataFrames
+    all_dataframes = []
+
+    # Define the periods to be considered for pivoting
+    periods = [6, 9, 12, 18, 24]
+
+    # Read CSV files from the directory, skipping files with 'hrsd' in the filename
+    for filename in os.listdir(directory):
+        if filename.endswith('.csv') and 'hrsd' not in filename:
+            df = pd.read_csv(os.path.join(directory, filename), usecols=columns)
+
+            # Apply the percentage transformation immediately if the column is present
+            if percent_column in df:
+                df[percent_column] = ((df[percent_column] * 100).round(2)).astype(str) + '%'
+
+            # Append the DataFrame to the list
+            all_dataframes.append(df)
+
+    # Concatenate all the dataframes to create a long DataFrame
+    long_df = pd.concat(all_dataframes)
+
+    # Initialize the wide DataFrame
+    wide_df = pd.DataFrame()
+
+    # Pivot and merge data for each period
+    for period in periods:
+        # Filter the DataFrame for the current period
+        period_df = long_df[long_df['perfw'] == period]
+
+        # Pivot the period-specific DataFrame
+        pivot_df = period_df.pivot(index='perfyymm', columns='perfw', values=['origyymm', percent_column])
+
+        # Flatten the columns MultiIndex, formatting as 'values_period'
+        pivot_df.columns = [f"{val}_{perfw}mo" for val, perfw in pivot_df.columns]
+
+        # Merge with the wide DataFrame using 'perfyymm' as the joining key
+        wide_df = pd.merge(wide_df, pivot_df.reset_index(), on='perfyymm',
+                           how='outer') if not wide_df.empty else pivot_df.reset_index()
+
+    # Sort the DataFrame by the specified column in descending order
+    wide_df.sort_values(by=sort_by, ascending=False, inplace=True)
+
+    # Drop columns that start with the specified prefix
+    cols_to_drop = [col for col in wide_df.columns if col.startswith(columns_to_drop_prefix)]
+    wide_df.drop(columns=cols_to_drop, inplace=True)
+
+    # Return the processed DataFrame
+    return wide_df
+
+
+# Example usage
+directory = 'path_to_your_directory'  # Replace with your directory path
+columns = ['perfyymm', 'origyymm', 'perfw', 'SD']  # Replace with columns you need
+percent_column = 'SD'  # The column to convert to a percentage
+sort_by = 'SD'  # The column to sort by in descending order
+columns_to_drop_prefix = 'perf'  # The prefix of columns to drop
+
+# Process the CSV files and print the resulting DataFrame
+df = process_csv_files(directory, columns, percent_column, sort_by, columns_to_drop_prefix)
+print(df)
 
 
 
