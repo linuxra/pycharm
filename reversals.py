@@ -276,5 +276,47 @@ df = process_csv_files(directory, columns, percent_column, sort_by, columns_to_d
 print(df)
 
 
+import os
+import pandas as pd
+
+def process_hrsd_files(directory, key_column):
+    """
+    Reads all CSV files from the specified directory that contain 'hrsd' in the filename,
+    combines them into a single DataFrame, and sorts the DataFrame in descending order
+    by the specified key column.
+
+    Parameters:
+    - directory: The directory where CSV files are located.
+    - key_column: The column name by which to sort the DataFrame in descending order.
+
+    Returns:
+    - A pandas DataFrame containing the combined data from the 'hrsd' files, sorted in
+      descending order by the key column.
+    """
+    # Initialize an empty list to store DataFrames
+    all_dataframes = []
+
+    # Read CSV files from the directory, including only files with 'hrsd' in the filename
+    for filename in os.listdir(directory):
+        if 'hrsd' in filename and filename.endswith('.csv'):
+            df = pd.read_csv(os.path.join(directory, filename))
+            all_dataframes.append(df)
+
+    # Concatenate all the dataframes to create one dataset
+    combined_df = pd.concat(all_dataframes)
+
+    # Sort the DataFrame by the specified key column in descending order
+    combined_df.sort_values(by=key_column, ascending=False, inplace=True)
+
+    # Return the processed DataFrame
+    return combined_df
+
+# Example usage
+directory = 'path_to_your_directory'  # Replace with your directory path
+key_column = 'your_key_column'        # Replace with the key column to sort by
+
+# Process the 'hrsd' CSV files and print the resulting DataFrame
+df = process_hrsd_files(directory, key_column)
+print(df)
 
 
