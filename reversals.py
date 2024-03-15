@@ -141,13 +141,16 @@ styled_df
 import os
 import pandas as pd
 
+import os
+import pandas as pd
+
 def process_csv_files(directory, columns, key_columns, percent_column):
     all_dataframes = []
     for filename in os.listdir(directory):
         if filename.endswith('.csv') and 'hrsd' not in filename:
             df = pd.read_csv(os.path.join(directory, filename), usecols=columns)
 
-            # Apply percentage conversion if the column exists in this df
+            # Apply percentage conversion if the column exists in this DataFrame
             if percent_column in df:
                 df[percent_column] = (df[percent_column] * 100).astype(str) + '%'
 
@@ -156,8 +159,16 @@ def process_csv_files(directory, columns, key_columns, percent_column):
     # Concatenate to form a long DataFrame
     long_df = pd.concat(all_dataframes)
 
+    # Ensure key_columns is a list or a tuple
+    if not isinstance(key_columns, (list, tuple)):
+        key_columns = [key_columns]
+
+    # Set multi-index if there are multiple key columns
+    if len(key_columns) > 1:
+        long_df.set_index(key_columns, inplace=True)
+
     # Pivot to create a wide table
-    wide_df = long_df.pivot(index=key_columns[0], columns=key_columns[1:])
+    wide_df = long_df.pivot_table(index=key_columns[0], columns=key_columns[1:], aggfunc='first')
 
     return wide_df
 
@@ -167,6 +178,7 @@ columns = ['column1', 'column2', 'column3']
 key_columns = ['key_column1', 'key_column2']
 percent_column = 'column_to_percent'
 df = process_csv_files(directory, columns, key_columns, percent_column)
+
 
 
 
