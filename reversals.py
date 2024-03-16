@@ -362,3 +362,51 @@ html_table += "</table>"
 display(HTML(html_table))
 
 
+from IPython.display import display, HTML
+from math import lcm
+import lorem
+
+# User inputs
+Num_ROWS = 4
+columns_each_row = (1, 2, 4, 2)
+
+# Table title
+table_title = "Nature's Serenity, Random Thoughts, and More"
+
+# Colors for the title and alternating rows
+title_bg_color = "#779ECB"  # A dark pastel blue
+alternate_color1 = "#FEF3C7"
+alternate_color2 = "#BDE0FE"
+
+# Function to generate special content with bullet points and an attachment
+def generate_special_content():
+    bullet_points = "<ul>" + "".join(f"<li>{lorem.sentence()}</li>" for _ in range(3)) + "</ul>"
+    attachment = "<a href='path_to_your_attachment'>Download Attachment</a>"  # Replace with the actual path
+    return bullet_points + attachment
+
+# Function to generate content for each cell
+def generate_content(row_index, col_span, is_special=False):
+    bg_color = alternate_color1 if row_index % 2 == 1 else alternate_color2
+    content = generate_special_content() if is_special else lorem.paragraph()
+    if row_index == 0:
+        return f"<th colspan='{col_span}' style='border: 1px solid #ccc; padding: 12px; background-color: {title_bg_color}; text-align: center; font-size: 20px; font-weight: bold; color: #2C3E50;'>{table_title}</th>"
+    else:
+        return f"<td colspan='{col_span}' style='border: 1px solid #ccc; padding: 12px; text-align: left; vertical-align: top; background-color: {bg_color};'>{content}</td>"
+
+# Calculate the total number of columns (maximum columns in a row)
+max_cols_in_a_row = lcm(*columns_each_row)
+
+# Generate the table
+html_table = "<table style='border-collapse: collapse; width: 100%; font-family: Arial, sans-serif;'>"
+for row in range(Num_ROWS):
+    html_table += "<tr>"
+    col_spans = ceil(max_cols_in_a_row / columns_each_row[row])
+    for col in range(columns_each_row[row]):
+        # Use special content in the first cell of the second row as an example
+        is_special = row == 1 and col == 0
+        html_table += generate_content(row, col_spans, is_special)
+    html_table += "</tr>"
+html_table += "</table>"
+
+# Display the HTML table in Jupyter Notebook
+display(HTML(html_table))
