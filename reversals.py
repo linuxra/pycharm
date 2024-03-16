@@ -320,3 +320,45 @@ df = process_hrsd_files(directory, key_column)
 print(df)
 
 
+from IPython.display import display, HTML
+from math import lcm
+import lorem
+
+# User inputs
+Num_ROWS = 4
+columns_each_row = (1, 7, 4, 1)
+
+# Calculate the least common multiple of columns_each_row to get max_cols_in_a_row
+max_cols_in_a_row = lcm(*columns_each_row)
+
+# Table title and colors
+table_title = "Nature's Serenity, Random Thoughts, and More"
+title_bg_color = "#779ECB"  # Dark pastel blue
+alternate_color1 = "#FEF3C7"
+alternate_color2 = "#BDE0FE"
+
+# Function to generate content for each cell
+def generate_content(row_index, col_span):
+    bg_color = alternate_color1 if row_index % 2 == 1 else alternate_color2
+    content = lorem.paragraph()
+    if row_index == 0:
+        # Title row
+        return f"<th colspan='{col_span}' style='border: 1px solid #ccc; padding: 12px; background-color: {title_bg_color}; text-align: center; font-size: 20px; font-weight: bold; color: #2C3E50;'>{table_title}</th>"
+    else:
+        # Content rows
+        return f"<td colspan='{col_span}' style='border: 1px solid #ccc; padding: 12px; text-align: left; vertical-align: top; background-color: {bg_color};'>{content}</td>"
+
+# Generate the table
+html_table = "<table style='border-collapse: collapse; width: 100%; font-family: Arial, sans-serif;'>"
+for row in range(Num_ROWS):
+    html_table += "<tr>"
+    col_spans = max_cols_in_a_row // columns_each_row[row]  # Determine the colspan for each cell
+    for _ in range(columns_each_row[row]):
+        html_table += generate_content(row, col_spans)
+    html_table += "</tr>"
+html_table += "</table>"
+
+# Display the HTML table in Jupyter Notebook
+display(HTML(html_table))
+
+
