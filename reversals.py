@@ -410,3 +410,170 @@ html_table += "</table>"
 
 # Display the HTML table in Jupyter Notebook
 display(HTML(html_table))
+
+from IPython.display import display, HTML
+from math import ceil, lcm
+import lorem
+
+
+class HTMLTableBuilder:
+    """
+    A class to build a customizable HTML table with content from various sources.
+
+    Attributes:
+        num_rows (int): The number of rows in the table.
+        columns_each_row (tuple): A tuple indicating the number of columns in each row.
+        table_title (str): The title of the table.
+        styles (dict): A dictionary for custom CSS styles.
+    """
+
+    def __init__(self, num_rows, columns_each_row, table_title, styles=None):
+        """
+        Constructor for HTMLTableBuilder class.
+
+        Parameters:
+            num_rows (int): The number of rows in the table.
+            columns_each_row (tuple): The number of columns in each row.
+            table_title (str): The title of the table.
+            styles (dict, optional): Custom styles for the table.
+        """
+        self.num_rows = num_rows
+        self.columns_each_row = columns_each_row
+        self.table_title = table_title
+        self.styles = styles or {}
+        self.title_bg_color = self.styles.get("title_bg_color", "#779ECB")
+        self.alternate_color1 = self.styles.get("alternate_color1", "#FEF3C7")
+        self.alternate_color2 = self.styles.get("alternate_color2", "#BDE0FE")
+        self.max_cols_in_a_row = lcm(*columns_each_row)
+
+    def validate_content_map(self, content_map):
+        """
+        Validates the content map structure and values.
+
+        Parameters:
+            content_map (dict): The content map to validate.
+
+        Raises:
+            ValueError: If position (0, 0) is used in content_map.
+            TypeError: If content map keys and values are not properly formatted.
+        """
+        if (0, 0) in content_map:
+            raise ValueError("Position (0, 0) is reserved for the table title and cannot be used in content_map.")
+        for key, value in content_map.items():
+            if not isinstance(key, tuple) or len(key) != 2 or not all(isinstance(x, int) for x in key):
+                raise TypeError("Content map keys must be tuples of two integers.")
+            if not isinstance(value, dict) or "type" not in value or "content" not in value:
+                raise TypeError("Each content_map value must be a dictionary with 'type' and 'content' keys.")
+
+    def format_content(self, content_data):
+        """
+        Formats the content based on its type.
+
+        Parameters:
+            content_data (dict): A dictionary containing 'type' and 'content' keys.
+
+        Returns:
+            str: HTML formatted content.
+        """
+        content_type = content_data.get('type')
+        content_items = content_data.get('content', [])
+
+        if content_type == 'bulleted':
+            return "<ul>" + "".join(f"<li>{item}</li>" for item in content_items) + "</ul>"
+        elif content_type == 'numbered':
+            return "<ol>" + "".join(f"<li>{item}</li>" for item in content_items) + "</ol>"
+        elif content_type == 'paragraph':
+            return "".join(f"<p>{item}</p>" for item in content_items)
+        elif content_type == 'heading':
+            return "".join(f"<h2>{item}</h2>" for item in content_items)
+        elif content_type == 'subheading':
+            return "".join(f"<h3>{item}</h3>" for item in content_items)
+        else:
+            return "".join(content_items)  # Default to plain text
+
+    def generate_content(self, row_index, col_span, content_data):
+        """
+        Generates HTML content for a single cell.
+
+        Parameters:
+            row_index (int): The current row index.
+            col_span (int): The colspan value for the cell.
+            content_data (dict): The content data for the cell.
+
+        Returns:
+            str: HTML for the cell.
+        """
+        bg_color = self.alternate_color1 if row_index % 2 == 1 else self.alternate_color2
+        formatted_content = self.format_content(content_data)
+        if row_index == 0:
+            return f"<th colspan='{col_span}' style='border: 1px solid #ccc; padding: 12px; background-color: {self.title_bg_color}; text-align: center; font-size: 20px; font-weight: bold; color: #2C3E50;'>{self.table_title}</th>"
+        else:
+            return f"<td colspan='{ col_span}' style='border: 1px solid #ccc; padding: 12px; text-align: left; vertical-align: top; background-color: {bg_color};'>{formatted_content}</td>"
+
+    def build_table(self, content_map):
+        """
+        Builds the HTML table based on the specified content.
+
+        Parameters:
+            content_map (dict): A dictionary where keys are (row, col) tuples and values are content data dictionaries.
+
+        Returns:
+            str: Complete HTML table.
+        """
+        self.validate_content_map(content_map)
+        html_table = "<table style='border-collapse: collapse; width: 100%; font-family: Arial, sans-serif;'>"
+        for row in range(self.num_rows):
+            html_table += "<tr>"
+            col_spans = ceil(self.max_cols_in_a_row / self.columns_each_row[row])
+            for col in range(self.columns_each_row[row]):
+                content_key = (row, col)
+                content_data = content_map.get(content_key, {'content': ['']})  # Empty string for undefined cells
+                html_table += self.generate_content(row, col_spans, content_data)
+            html_table += "</tr>"
+        html_table += "</table>"
+        return html_table
+
+
+import pandas as pd
+
+def excel_to_content_map_v2(excel_file, sheet_name=0):
+    """
+    Converts an Excel sheet to a content map compatible with HTMLTableBuilder.
+
+    Parameters:
+        excel_file (str): Path to the Excel file.
+        sheet_name (int/str, optional): Name or index of the sheet in the Excel file.
+
+    Returns:
+        dict: Content map for HTMLTableBuilder.
+    """
+    df = pd.read_excel(excel_file, sheet_name=sheet_name)
+
+    content_map = {}
+    for _, row in df.iterrows():
+        position = (int(row['row']), int(row['column']))
+        content_type = row['type']
+        content = row['content'].split(', ')  # Assuming list items are separated by ', '
+        content_map[position] = {'type': content_type, 'content': content}
+
+    return content_map
+# Example usage
+excel_file = 'path_to_your_excel_file.xlsx'
+content_map_from_excel = excel_to_content_map_v2(excel_file)
+
+table_title = "My Table"
+styles = {
+    "title_bg_color": "#4B8BBE",
+    "alternate_color1": "#ECECEC",
+    "alternate_color2": "#FFFFFF"
+}
+
+# Initialize HTMLTableBuilder
+table = HTMLTableBuilder(3, (2, 2, 2), table_title, styles)
+
+# Build the table with content from Excel
+html_table = table.build_table(content_map_from_excel)
+
+# Display the table in a Jupyter Notebook
+display(HTML(html_table))
+
