@@ -787,3 +787,57 @@ html_table = builder.build_table()
 
 # Display the table in a Jupyter Notebook
 display(HTML(html_table))
+
+
+def _generate_cell_html(self, cell):
+    """
+    Generates HTML for a single cell.
+
+    Args:
+        cell (dict): Dictionary representing the cell properties.
+
+    Returns:
+        str: HTML string for the cell.
+    """
+    cell_html = "<td"
+
+    # Apply colspan and rowspan if specified
+    if 'colspan' in cell:
+        cell_html += f" colspan='{cell['colspan']}'"
+    if 'rowspan' in cell:
+        cell_html += f" rowspan='{cell['rowspan']}'"
+
+    # Apply cell styles, including border
+    cell_style = "border: 1px solid black;"  # Default cell border
+    if 'style' in cell:
+        cell_style += cell['style']
+    cell_html += f" style='{cell_style}'>"
+
+    # Add the cell content
+    cell_html += self._format_content(cell.get('type', 'text'), cell.get('content', ''))
+    cell_html += "</td>"
+    return cell_html
+def build_table(self):
+    """
+    Builds the complete HTML table.
+
+    Returns:
+        str: The complete HTML table as a string.
+    """
+    table_html = "<table"
+    # Apply border-collapse to the table and any additional table styles
+    table_style = "border-collapse: collapse;"
+    if 'table_style' in self.styles:
+        table_style += self.styles['table_style']
+    table_html += f" style='{table_style}'>"
+
+    # If there is a table title, add it
+    if self.table_title:
+        table_html += f"<tr><th colspan='{self.max_span}' style='text-align: center; border: 1px solid black;'>{self.table_title}</th></tr>"
+
+    # Generate HTML for each row
+    for cells, row_style in self.rows:
+        table_html += self._generate_row_html(cells, row_style)
+
+    table_html += "</table>"
+    return table_html
