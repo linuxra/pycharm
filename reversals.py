@@ -577,3 +577,213 @@ html_table = table.build_table(content_map_from_excel)
 # Display the table in a Jupyter Notebook
 display(HTML(html_table))
 
+
+class HTMLTableBuilder5:
+    """
+    A flexible HTML table builder that supports complex table structures including
+    rowspan and colspan, customizable styles, and various content types.
+
+    Attributes:
+        table_title (str): The title of the table.
+        styles (dict): Custom styles for the table.
+        rows (list): A list of tuples representing rows and their styles.
+        max_span (int): The maximum span for the title, considering colspan of rows.
+    """
+
+    def __init__(self, table_title=None, styles=None):
+        """
+        Initializes the HTMLTableBuilder.
+
+        Args:
+            table_title (str, optional): The title of the table. Defaults to None.
+            styles (dict, optional): Custom styles for the table. Defaults to None.
+        """
+        self.table_title = table_title
+        self.styles = styles or {}
+        self.rows = []
+        self.max_span = 0
+
+    def add_row(self, cells, row_style=None):
+        """
+        Adds a row to the table.
+
+        Args:
+            cells (list of dict): A list where each dict represents a cell in the row.
+                                  Keys can include 'content', 'colspan', 'rowspan', 'type', 'style'.
+            row_style (str, optional): CSS style for the entire row. Defaults to None.
+        """
+        total_col_span = sum(cell.get('colspan', 1) for cell in cells)
+        self.max_span = max(self.max_span, total_col_span)
+        self.rows.append((cells, row_style))
+
+    def _generate_cell_html(self, cell):
+        """
+        Generates HTML for a single cell.
+
+        Args:
+            cell (dict): A dictionary representing the cell with possible keys
+                         like 'content', 'colspan', 'rowspan', 'type', 'style'.
+
+        Returns:
+            str: HTML string for the cell.
+        """
+        cell_html = "<td"
+        if 'colspan' in cell:
+            cell_html += f" colspan='{cell['colspan']}'"
+        if 'rowspan' in cell:
+            cell_html += f" rowspan='{cell['rowspan']}'"
+        if 'style' in cell:
+            cell_html += f" style='{cell['style']}'"
+        cell_html += ">"
+        cell_html += self._format_content(cell.get('type', 'text'), cell.get('content', ''))
+        cell_html += "</td>"
+        return cell_html
+
+    def _format_content(self, content_type, content):
+        """
+        Formats content based on its type.
+         Args:
+            content_type (str): The type of the content (e.g., 'text', 'image').
+            content (str, dict, or list): The content to be formatted.
+
+        Returns:
+            str: Formatted content as an HTML string.
+        """
+        if isinstance(content, list):
+            # If content is a list, format each item in the list
+            return ''.join(
+                [self._format_content(item.get('type', 'text'), item.get('content', '')) for item in content])
+        elif content_type == 'text':
+            return content
+        elif content_type == 'bulleted':
+            list_items = ''.join(f'<li>{item}</li>' for item in content)
+            return f'<ul>{list_items}</ul>'
+
+        elif content_type == 'heading':
+            return f"<h3 style='text-align: left;'>{content}</h3>"
+        elif content_type == 'paragraph':
+            return f"<p>{content}</p>"
+        elif content_type == 'image':
+            return f"<img src='{content['src']}' alt='{content.get('alt', '')}' " \
+                   f"width='{content.get('width', '')}' height='{content.get('height', '')}'>"
+        return content
+
+    def _generate_row_html(self, cells, row_style):
+        """
+        Generates HTML for a single row.
+
+        Args:
+            cells (list of dict): List of cell definitions for the row.
+            row_style (str): CSS style for the entire row.
+
+        Returns:
+            str: HTML string for the row.
+        """
+        row_html = "<tr"
+        if row_style:
+            row_html += f" style='{row_style}'"
+        row_html += ">"
+        row_html += ''.join(self._generate_cell_html(cell) for cell in cells)
+        row_html += "</tr>"
+        return row_html
+
+    def build_table(self):
+        """
+        Builds the complete HTML table.
+
+        Returns:
+            str: The complete HTML table as a string.
+        """
+        table_html = "<table"
+        if 'table_style' in self.styles:
+            table_html += f" style='{self.styles['table_style']}'"
+        table_html += ">"
+
+        if self.table_title:
+            table_html += f"<tr><th colspan='{self.max_span}' style='text-align: center;'>{self.table_title}</th></tr>"
+
+        for cells, row_style in self.rows:
+            table_html += self._generate_row_html(cells, row_style)
+
+        table_html += "</table>"
+        return table_html
+# Example of a cell with comprehensive styling
+cell_style = {
+    'background-color': '#FFC3A0',
+    'color': 'black',
+    'text-align': 'left',
+    'font-family': 'Arial, sans-serif',
+    'font-size': '14px',
+    'border': '1px solid #ddd',
+    'padding': '8px'
+}
+
+# Use in the add_row method
+builder.add_row([
+    {'content': 'Example content', 'style': '; '.join(f"{k}: {v}" for k, v in cell_style.items())},
+    # ... other cells ...
+])
+from IPython.display import display, HTML
+import lorem  # Ensure the lorem package is installed
+
+# Create an instance of the HTMLTableBuilder with a title
+builder = HTMLTableBuilder(table_title="Example Table")
+
+# Define background colors for each cell
+bg_colors = [
+    "#FFDDC1",  # Title color
+    "#FFABAB",  # Large cell (Cell 1)
+    "#FFC3A0",  # Cell 2 (summary)
+    "#FFAFCC",  # Cell 3
+    "#B5EAEA",  # Cell 4
+    "#B28DFF"   # Cell 5
+]
+
+# Define text colors for each cell
+text_colors = [
+    "black",    # Title text color
+    "white",    # Large cell text color
+    "black",    # Cell 2 text color
+    "darkblue", # Cell 3 text color
+    "green",    # Cell 4 text color
+    "purple"    # Cell 5 text color
+]
+
+# Set the title row style
+builder.styles['table_style'] = f'background-color: {bg_colors[0]}; color: {text_colors[0]};'
+
+# Complex content for different cells
+cell_2_summary = lorem.sentence()  # One line summary for Cell 2
+
+cell_3_content = [
+    {'type': 'heading', 'content': 'Cell 3 Heading'},
+    {'type': 'paragraph', 'content': lorem.paragraph()}
+]
+
+cell_4_content = [
+    {'type': 'heading', 'content': 'Cell 4 Heading'},
+    {'type': 'paragraph', 'content': lorem.paragraph()}
+]
+
+cell_5_content = [
+    {'type': 'heading', 'content': 'Cell 5 Heading'},
+    {'type': 'paragraph', 'content': lorem.paragraph()}
+]
+
+# Adding the second row
+builder.add_row([
+    {'content': cell_3_content, 'rowspan': 2, 'style': f'background-color: {bg_colors[1]}; color: {text_colors[1]};'},
+    {'content': cell_2_summary, 'style': f'background-color: {bg_colors[2]}; color: {text_colors[2]};'},
+    {'content': cell_4_content, 'style': f'background-color: {bg_colors[3]}; color: {text_colors[3]};'}
+])
+
+# Adding the third row
+builder.add_row([
+    {'content': cell_5_content, 'style': f'background-color: {bg_colors[4]}; color: {text_colors[4]};'}
+])
+
+# Build the table
+html_table = builder.build_table()
+
+# Display the table in a Jupyter Notebook
+display(HTML(html_table))
