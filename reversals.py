@@ -1039,18 +1039,18 @@ html_table_advanced = table_builder_advanced.build_table()
 HTML(html_table_advanced)
 
 
-def add_dataframe(self, dataframe):
+def add_dataframe(self, df):
     """
     Adds rows to the table from a Pandas DataFrame.
 
     Args:
-        dataframe (pd.DataFrame): The DataFrame to be converted to HTML table rows.
+        df (pd.DataFrame): The DataFrame to be added to the table.
     """
-    # Add header row
-    header_cells = [{'content': col, 'type': 'text'} for col in dataframe.columns]
+    # Add the header row
+    header_cells = [{'content': col, 'type': 'text'} for col in df.columns]
     self.add_row(header_cells, row_style="font-weight: bold;")
 
-    # Add data rows
-    for idx, row in dataframe.iterrows():
-        row_cells = [{'content': value, 'type': 'text'} for value in row]
+    # Add each row from the DataFrame
+    for _, row in df.iterrows():
+        row_cells = [{'content': str(cell), 'type': 'text'} for cell in row]
         self.add_row(row_cells)
