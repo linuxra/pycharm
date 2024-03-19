@@ -841,3 +841,199 @@ def build_table(self):
 
     table_html += "</table>"
     return table_html
+
+
+class HTMLTableBuilder6:
+    """
+    A flexible HTML table builder that supports complex table structures including
+    rowspan and colspan, customizable styles, various content types, and a CSS stylesheet.
+    """
+
+    def __init__(self, table_title=None, styles=None, css_stylesheet=None):
+        self.table_title = table_title
+        self.styles = styles or {}
+        self.css_stylesheet = css_stylesheet or ""
+        self.rows = []
+        self.max_span = 0
+
+    def add_row(self, cells, row_style=None):
+        total_col_span = sum(cell.get('colspan', 1) for cell in cells)
+        self.max_span = max(self.max_span, total_col_span)
+        self.rows.append((cells, row_style))
+
+    def _generate_cell_html(self, cell):
+        cell_html = "<td"
+        if 'colspan' in cell:
+            cell_html += f" colspan='{cell['colspan']}'"
+        if 'rowspan' in cell:
+            cell_html += f" rowspan='{cell['rowspan']}'"
+        if 'style' in cell:
+            cell_html += f" style='{cell['style']}'"
+        cell_html += ">"
+        cell_html += self._format_content(cell.get('type', 'text'), cell.get('content', ''))
+        cell_html += "</td>"
+        return cell_html
+
+    def _format_content(self, content_type, content):
+        if content_type == 'text':
+            return content
+        elif content_type == 'bulleted':
+            list_items = ''.join(f'<li>{item}</li>' for item in content)
+            return f'<ul>{list_items}</ul>'
+        elif content_type == 'heading':
+            return f"<h3 >{content}</h3>"
+        elif content_type == 'paragraph':
+            return f"<p>{content}</p>"
+        elif content_type == 'list':
+            # Correctly handle a list of mixed content types
+            return ''.join(self._format_content(item.get('type', 'text'), item.get('content', '')) for item in content)
+        return content
+
+    def _generate_row_html(self, cells, row_style):
+        row_html = "<tr"
+        if row_style:
+            row_html += f" style='{row_style}'"
+        row_html += ">"
+        row_html += ''.join(self._generate_cell_html(cell) for cell in cells)
+        row_html += "</tr>"
+        return row_html
+
+    def _generate_stylesheet_html(self):
+        if self.css_stylesheet:
+            return f"<style>{self.css_stylesheet}</style>"
+        return ""
+
+    def build_table(self):
+        table_html = "<table"
+        if 'table_style' in self.styles:
+            table_html += f" style='{self.styles['table_style']}'"
+        table_html += ">"
+
+        if self.table_title:
+            table_html += f"<tr><th colspan='{self.max_span}' style='text-align: center;'>{self.table_title}</th></tr>"
+
+        for cells, row_style in self.rows:
+            table_html += self._generate_row_html(cells, row_style)
+
+        table_html += "</table>"
+        return self._generate_stylesheet_html() + table_html
+
+# Defining the CSS
+css_stylesheet_advanced = """
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: Arial, sans-serif;
+    color: #333;
+    text-align: center;
+}
+th {
+    background-color: #6FA1D2;
+    color: white;
+    text-align: left;
+    padding: 10px;
+}
+td {
+    padding: 10px;
+    border-bottom: 1px solid #ddd;text-align: left;
+}
+tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+tr:nth-child(odd) {
+    background-color: #EFF6FB;
+}
+h3 {
+    color: #B5C0D0;text-align:left;
+}
+ul {
+    padding-left: 10px;
+}
+"""
+css_stylesheet_enhanced = """
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: Arial, sans-serif;
+    color: #333;
+    box-shadow: 0px 0px 10px #aaa; /* Added shadow for depth */
+    border-radius: 10px; /* Rounded corners */
+    overflow: hidden;
+}
+
+thead th {
+    background-color: #6FA1D2;
+    color: white;
+    text-align: center; /* Center-aligned header text */
+    padding: 10px;
+    position: sticky; /* Sticky header */
+    top: 0;
+    z-index: 10;
+    font-weight: bold; /* Bold header text */
+}
+
+td {
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+    font-style: italic; /* Italicized cell text */
+}
+
+tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+tr:nth-child(odd) {
+    background-color: #EFF6FB;
+}
+
+tr:hover {
+    background-color: #d1e0e0; /* Hover effect for rows */
+}
+
+h3 {
+    color: #4CAF50;
+}
+
+ul {
+    padding-left: 20px;
+}
+"""
+
+# Creating the table builder instance
+table_builder_advanced = HTMLTableBuilder6(table_title="Advanced Example Table", css_stylesheet=css_stylesheet_enhanced)
+
+# Adding rows with complex content
+table_builder_advanced.add_row([{'content': 'Feature', 'type': 'text'}, {'content': 'Description', 'type': 'text'}], row_style="font-weight: bold;")
+
+# Row with a heading and a bulleted list
+table_builder_advanced.add_row([
+    {'content': 'Design', 'type': 'text'},
+    {'content': {'type': 'bulleted', 'content': ['Modern', 'User-friendly', 'Responsive']}, 'type': 'bulleted'}
+])
+
+# Row with paragraph text
+table_builder_advanced.add_row([
+    {'content': 'About', 'type': 'text'},
+    {'content': 'This table demonstrates a variety of content types including text, headings, lists, and styled paragraphs.', 'type': 'paragraph'}
+])
+
+# Row with a heading and styled paragraph
+table_builder_advanced.add_row([
+    {'content': 'Purpose', 'type': 'text'},
+    {'content': 'Enhancing Presentation',
+     'type': 'heading'}
+])
+
+# Row with complex mixed content
+table_builder_advanced.add_row([
+    {'content': 'Features', 'type': 'text'},
+    {'content': [{'type': 'heading', 'content': 'Advanced Styling'},
+                 {'type': 'paragraph', 'content': 'The table uses advanced CSS for professional, aesthetically pleasing design.'}], 'type': 'list'}
+])
+
+# Adding rows with complex content as before...
+# [Add rows here similar to the previous examples]
+
+# Creating and displaying the table
+html_table_advanced = table_builder_advanced.build_table()
+HTML(html_table_advanced)
