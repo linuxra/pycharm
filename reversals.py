@@ -1059,6 +1059,7 @@ def add_dataframe(self, df):
 ChatGPT
 Certainly! I can create a function for you where you can pass the DataFrame and the column names as parameters. This function will then apply the necessary transformations and return the modified DataFrame. Here's how you can structure it:
 
+
 python
 Copy code
 import pandas as pd
@@ -1067,17 +1068,17 @@ def format_percentage_columns(df, var1_col, var2_str_col):
     # Convert 'var2_str_col' to float
     df['var2'] = df[var2_str_col].str.rstrip('%').astype(float) / 100
 
-    # Calculate difference
-    df['difference'] = df[var1_col] - df['var2']
+    # Calculate percent change
+    df['percent_change'] = ((df['var2'] - df[var1_col]) / df[var1_col]) * 100
 
     # Round to two decimals
     df[var1_col] = df[var1_col].round(2)
     df['var2'] = df['var2'].round(2)
-    df['difference'] = df['difference'].round(2)
+    df['percent_change'] = df['percent_change'].round(2)
 
     # Format as strings with percent
     df[f'{var1_col}_str'] = df[var1_col].apply(lambda x: f"{x:.2%}")
     df[f'{var2_str_col}_str'] = df['var2'].apply(lambda x: f"{x:.2%}")
-    df['difference_str'] = df['difference'].apply(lambda x: f"{x:.2%}")
+    df['percent_change_str'] = df['percent_change'].apply(lambda x: f"{x:.2%}")
 
     return df
