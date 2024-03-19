@@ -1082,3 +1082,66 @@ def format_percentage_columns(df, var1_col, var2_str_col):
     df['percent_change_str'] = df['percent_change'].apply(lambda x: f"{x:.2%}")
 
     return df
+
+
+
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Example DataFrame with multiple columns
+data = {
+    'A': ['5%', '15%', '25', '35', '45%'],
+    'B': ['10%', 20, '30%', 40, 50],
+    'C': [15, '25%', 5, '35%', '10%'],
+    # ... add more columns if needed
+}
+df = pd.DataFrame(data)
+
+def convert_to_float(value):
+    if isinstance(value, str):
+        value = value.replace('%', '')
+        return float(value)
+    return value
+
+def color_A(value):
+    value = convert_to_float(value)
+    if value < 10:
+        return 'lightgreen'
+    elif 10 <= value < 20:
+        return 'yellow'
+    else:
+        return 'lightcoral'
+
+def color_B(value):
+    value = convert_to_float(value)
+    return 'lightgreen' if value < 20 else 'lightcoral'
+
+# ... define more functions for other columns if needed
+
+# Map columns to their coloring functions
+color_functions = {
+    'A': color_A,
+    'B': color_B,
+    # ... map other columns to their functions
+}
+
+# Create a figure and a subplot
+fig, ax = plt.subplots(figsize=(8, 2))
+
+# Hide axes
+ax.xaxis.set_visible(False)
+ax.yaxis.set_visible(False)
+ax.set_frame_on(False)
+
+# Create a table
+tbl = ax.table(cellText=df.values, bbox=[0, 0, 1, 1], colLabels=df.columns)
+
+# Apply color based on conditions
+for i, row in df.iterrows():
+    for col in df.columns:
+        value = df.at[i, col]
+        color_func = color_functions.get(col, lambda x: 'white')  # Default color
+        color = color_func(value)
+        tbl[(i + 1, df.columns.get_loc(col))].set_facecolor(color)
+
+plt.show()
