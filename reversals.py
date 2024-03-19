@@ -1037,3 +1037,20 @@ table_builder_advanced.add_row([
 # Creating and displaying the table
 html_table_advanced = table_builder_advanced.build_table()
 HTML(html_table_advanced)
+
+
+def add_dataframe(self, dataframe):
+    """
+    Adds rows to the table from a Pandas DataFrame.
+
+    Args:
+        dataframe (pd.DataFrame): The DataFrame to be converted to HTML table rows.
+    """
+    # Add header row
+    header_cells = [{'content': col, 'type': 'text'} for col in dataframe.columns]
+    self.add_row(header_cells, row_style="font-weight: bold;")
+
+    # Add data rows
+    for idx, row in dataframe.iterrows():
+        row_cells = [{'content': value, 'type': 'text'} for value in row]
+        self.add_row(row_cells)
