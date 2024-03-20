@@ -1149,3 +1149,10 @@ plt.show()
 
 # Modified code for 'stat_sign_diff'
 totals['stat_sign_diff'] = df[df['stat_sign_diff'] == 'Yes']['act_cnts'].sum() / df['act_cnts'].sum() * 100
+# Add text 'Worst' at the top of the arrow
+ax.text(arrow_x_position - 0.02, 0.5, 'Worst',
+        va='center', ha='right', fontsize=12, fontweight='bold')
+
+# Add text 'Best' at the bottom of the arrow
+ax.text(arrow_x_position - 0.02, 0, 'Best',
+        va='center', ha='right', fontsize=12, fontweight='bold')
