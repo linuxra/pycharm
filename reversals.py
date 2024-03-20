@@ -1145,3 +1145,7 @@ for i, row in df.iterrows():
         tbl[(i + 1, df.columns.get_loc(col))].set_facecolor(color)
 
 plt.show()
+
+
+# Modified code for 'stat_sign_diff'
+totals['stat_sign_diff'] = df[df['stat_sign_diff'] == 'Yes']['act_cnts'].sum() / df['act_cnts'].sum() * 100
