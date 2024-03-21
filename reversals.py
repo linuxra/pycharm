@@ -1170,3 +1170,20 @@ ax.text(1.5, 5, 'Sample Text', style='italic',
         bbox={'facecolor': 'red', 'alpha': 0.5, 'pad': 10})
 
 plt.show()
+
+# Position for the text
+text_position = 0.55
+
+# Add a rectangle for background color
+rect = Rectangle((0, text_position - 0.03), 1, 0.05, transform=ax.transAxes,
+                 facecolor='red', alpha=0.5)
+ax.add_patch(rect)
+
+# Add text spanning the full width
+ax.text(0.5, text_position, 'Sample Text', horizontalalignment='center',
+        verticalalignment='center', fontsize=12, color='white',
+        transform=ax.transAxes)
+
+# Add large table at the bottom filling the remaining length
+table_large = ax.table(cellText=df_large.values, colLabels=df_large.columns,
+                       cellLoc='center', loc='bottom', bbox=[0, 0, 1, 0.5])
