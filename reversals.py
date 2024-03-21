@@ -1156,3 +1156,17 @@ ax.text(arrow_x_position - 0.02, 0.5, 'Worst',
 # Add text 'Best' at the bottom of the arrow
 ax.text(arrow_x_position - 0.02, 0, 'Best',
         va='center', ha='right', fontsize=12, fontweight='bold')
+
+
+import matplotlib.pyplot as plt
+
+fig, ax = plt.subplots()
+
+# Example data
+ax.plot([1, 2, 3], [4, 5, 6])
+
+# Adding text with a background color
+ax.text(1.5, 5, 'Sample Text', style='italic',
+        bbox={'facecolor': 'red', 'alpha': 0.5, 'pad': 10})
+
+plt.show()
