@@ -83,3 +83,52 @@ styled_df = (df.style
 
 # Display styled DataFrame in Jupyter Notebook
 styled_df
+
+
+html = f"""
+<div class="flex-container">
+    <div class="flex-item">{styled_df1_html}</div>
+    <div class="flex-item">{styled_df2_html}</div>
+</div>
+"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Flexbox Layout Test</title>
+    <style>
+        /* Flex container */
+        .flex-container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            border: 2px solid black; /* Border for the container */
+            padding: 10px;
+        }
+
+        /* First flex item - full width */
+        .flex-item-1 {
+            width: 100%;
+            background-color: lightblue; /* Background color for the first item */
+            border: 2px solid blue; /* Border for the first item */
+            padding: 10px;
+            box-sizing: border-box; /* Include padding and border in the element's total width and height */
+        }
+
+        /* Second flex item - aligned to the right bottom */
+        .flex-item-2 {
+            align-self: flex-end;
+            margin-top: auto; /* This pushes the item to the bottom */
+            background-color: lightgreen; /* Background color for the second item */
+            border: 2px solid green; /* Border for the second item */
+            padding: 10px;
+            box-sizing: border-box; /* Include padding and border in the element's total width and height */
+        }
+    </style>
+</head>
+<body>
+    <div class="flex-container">
+        <div class="flex-item-1">Item 1</div>
+        <div class="flex-item-2">Item 2</div>
+    </div>
+</body>
+</html>
