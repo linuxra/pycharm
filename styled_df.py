@@ -188,3 +188,20 @@ html_string = """
     </div>
 </div>
 """
+import pandas as pd
+
+# Example DataFrame
+df = pd.DataFrame({
+    'A': [1, 2, 3],
+    'B': [4, 5, 6]
+})
+
+def highlight_last_value(s, color):
+    """
+    Apply a background color to the last value of a Series.
+    """
+    return ['background-color: {}'.format(color) if i == len(s) - 1 else '' for i in range(len(s))]
+
+# Apply the styling
+styled_df = df.style.apply(highlight_last_value, color='yellow', subset=['B'])
+styled_df
