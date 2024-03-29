@@ -205,3 +205,14 @@ def highlight_last_value(s, color):
 # Apply the styling
 styled_df = df.style.apply(highlight_last_value, color='yellow', subset=['B'])
 styled_df
+
+
+def highlight_last_value(styler, column, color):
+    """
+    Apply a background color to the last value of a specified column.
+    """
+    def apply_style(s):
+        styles = [''] * (len(s) - 1) + [f'background-color: {color}']
+        return styles
+
+    return styler.apply(apply_style, subset=[column])
