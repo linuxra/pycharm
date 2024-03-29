@@ -137,3 +137,54 @@ plt.tight_layout()
 
 # Show the plot
 plt.show()
+
+
+
+.flex-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    border: 2px solid black; /* Border for the container */
+    padding: 10px;
+}
+
+/* First flex item for the small DataFrame */
+.flex-item-1 {
+    width: 100%;
+    background-color: lightblue; /* Background color for the first item */
+    border: 2px solid blue; /* Border for the first item */
+    padding: 10px;
+    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+}
+
+/* Second flex item for the title */
+.flex-item-2 {
+    width: 100%;
+    background-color: lightgreen; /* Background color for the title */
+    border: 2px solid green; /* Border for the title */
+    padding: 10px;
+    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+    text-align: center; /* Center align the title text */
+}
+
+/* Third flex item for the big DataFrame */
+.flex-item-3 {
+    width: 100%;
+    background-color: lightyellow; /* Background color for the big DataFrame */
+    border: 2px solid orange; /* Border for the big DataFrame */
+    padding: 10px;
+    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+}
+html_string = """
+<div class="flex-container">
+    <div class="flex-item-1">
+        <!-- Small DataFrame HTML here -->
+    </div>
+    <div class="flex-item-2">
+        Title Text
+    </div>
+    <div class="flex-item-3">
+        <!-- Big DataFrame HTML here -->
+    </div>
+</div>
+"""
