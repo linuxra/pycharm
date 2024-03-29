@@ -98,3 +98,42 @@ styles = [
     {'selector': 'table, tr, th, td',
      'props': [('box-shadow', 'none')]},  # This line removes shadows
 ]
+
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+def plot_data(ax, df, x_col, y_cols, y_labels, title, x_label, y_label):
+    for y_col, label in zip(y_cols, y_labels):
+        ax.plot(df[x_col], df[y_col], label=label)
+    ax.set_title(title)
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+    ax.legend()
+
+# Sample DataFrame
+np.random.seed(0)
+df = pd.DataFrame({
+    'Decile': range(1, 11),
+    'Bad': np.random.rand(10),
+    'PBad': np.random.rand(10)
+})
+
+# Calculating LogOdds and PLogOdds
+df['LogOdds'] = np.log(df['Bad'] / (1 - df['Bad']))
+df['PLogOdds'] = np.log(df['PBad'] / (1 - df['PBad']))
+
+# Create a 3x2 subplot structure
+fig, axs = plt.subplots(3, 2, figsize=(10, 15))
+
+# Apply the plotting function to each subplot
+for i in range(3):
+    plot_data(axs[i, 0], df, 'Decile', ['Bad', 'PBad'], ['Bad', 'PBad'], f'Row {i+1} - Bad and PBad', 'Decile', 'Probability')
+    plot_data(axs[i, 1], df, 'Decile', ['LogOdds', 'PLogOdds'], ['LogOdds', 'PLogOdds'], f'Row {i+1} - LogOdds and PLogOdds', 'Decile', 'Log Odds')
+
+# Adjust layout
+plt.tight_layout()
+
+# Show the plot
+plt.show()
