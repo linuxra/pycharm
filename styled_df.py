@@ -216,3 +216,32 @@ def highlight_last_value(styler, column, color):
         return styles
 
     return styler.apply(apply_style, subset=[column])
+
+
+
+import seaborn as sns
+
+# Set the seaborn grid style
+sns.set(style="whitegrid")
+
+# Plotting the data using seaborn with the corrected x-axis
+plt.figure(figsize=(10, 6))
+
+sns.lineplot(x=df['perf_vint'], y=df['6mo_sd'], label='6 months')
+sns.lineplot(x=df['perf_vint'], y=df['9mo_sd'], label='9 months')
+sns.lineplot(x=df['perf_vint'], y=df['12mo_sd'], label='12 months')
+sns.lineplot(x=df['perf_vint'], y=df['18mo_sd'], label='18 months')
+sns.lineplot(x=df['perf_vint'], y=df['24mo_sd'], label='24 months')
+
+plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y%m'))
+plt.gca().xaxis.set_major_locator(mdates.MonthLocator())
+plt.gcf().autofmt_xdate()
+
+plt.xlabel('Performance Vintage (YYYYMM)')
+plt.ylabel('Standard Deviation (%)')
+plt.title('Trend of Standard Deviation Over Different Time Periods')
+plt.legend()
+plt.grid(True)
+
+plt.show()
+
