@@ -526,3 +526,21 @@ for i in range(1, num_colored_columns + 1):
     additional_styles.append({'selector': f'.grid-table td:nth-child({i})', 'props': [('background-color', 'var(--column-color)'), ('color', 'var(--column-font-color)')]})
 
 styles += additional_styles
+
+
+import base64
+
+# File path
+file_path = '/mnt/data/temp_test.xlsx'
+
+# Read the file and encode it
+with open(file_path, "rb") as file:
+    encoded_string = base64.b64encode(file.read()).decode()
+
+# Preparing the data URL
+data_url = f"data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{encoded_string}"
+
+# Limit the display length for convenience
+display_url = data_url[:50] + "..." if len(data_url) > 50 else data_url
+display_url
+<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,[BASE64_STRING]" download="your_file_name.xlsx">Download Excel File</a>
