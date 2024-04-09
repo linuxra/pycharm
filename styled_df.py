@@ -139,6 +139,104 @@ plt.tight_layout()
 plt.show()
 
 
+def add_total_row(df):
+    df.loc['Total'] = df.select_dtypes('number').sum()
+
+    # Label the total row in the first column
+    df.at['Total', df.columns[0]] = 'Total'
+
+    return df
+
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+
+# Create a DataFrame with 10 rows and specified columns
+df = pd.DataFrame({
+    'Rank': range(1, 11),  # Rank from 1 to 10
+    'Actuals': np.random.randint(100, 1000, 10),  # Integer values for 'Actuals'
+    'Bad Rate': np.random.uniform(0, 1, 10),
+    'PBad': np.random.uniform(0, 1, 10),
+    'Diff': np.random.uniform(-0.5, 0.5, 10),
+    'Mad': np.random.uniform(0, 1, 10)
+})
+
+# Base CSS
+base_css = """
+<style type='text/css'>
+  :root {
+    --column-color: #1D24CA; /* Color for the first n columns */
+    --column-font-color: #ffffff;
+    --default-border-color: #ddd; /* Border color for table cells */
+    --default-padding: 8px; /* Padding for table cells */
+    --default-text-align: left; /* Text alignment for table cells */
+    --thead-background-color: #201658; /* Background color for the table header */
+    --header-font-color: #ffffff; /* White color for table header font */
+    --row-odd-background-color: #C7C8CC; /* Background color for odd rows */
+    --row-even-background-color: #F2EFE5; /* Background color for even rows */
+    --row-hover-background-color: #A3FFD6; /* Background color on row hover */
+    --transition-duration: 0.3s; /* Duration for hover transition */
+    --transition-easing: ease; /* Easing function for hover transition */
+  }
+  .centered-table-container {
+    display: flex;
+    justify-content: center;
+  }
+  table.grid-table {
+    border-collapse: collapse;
+    margin: auto;
+  }
+  .grid-table th, .grid-table td {
+    border: 1px solid var(--default-border-color);
+    padding: var(--default-padding);
+    text-align: var(--default-text-align);
+  }
+  .grid-table thead th {
+    background-color: var(--thead-background-color);
+    color: var(--header-font-color);
+  }
+  .grid-table tbody tr:nth-child(odd) {
+    background-color: var(--row-odd-background-color);
+  }
+  .grid-table tbody tr:nth-child(even) {
+    background-color: var(--row-even-background-color);
+  }
+  .grid-table tbody tr:hover {
+    background-color: var(--row-hover-background-color);
+    transform: scale(1.02);
+    transition: transform var(--transition-duration) var(--transition-easing);
+  }
+</style>
+"""
+
+# User-defined number of columns to color
+num_colored_columns = 1
+
+# Additional CSS for dynamically coloring columns
+additional_css = "<style type='text/css'>"
+for i in range(1, num_colored_columns + 1):
+    additional_css += f"""
+    .grid-table td:nth-child({i}) {{
+        background-color: var(--column-color);
+        color: var(--column-font-color);
+    }}
+    """
+additional_css += "</style>"
+
+# Combine the base and additional CSS
+full_css = base_css + additional_css
+
+# Process the DataFrame
+processed_df = df.pipe(add_total_row)
+
+# Convert DataFrame to HTML without the index and apply CSS
+html_data = processed_df.to_html(index=False, classes="grid-table")
+styled_html = '<div class="centered-table-container">' + html_data + '</div>' + full_css
+
+# Display the styled table in Jupyter Notebook
+display(HTML(styled_html))
 
 .flex-container {
     display: flex;
@@ -245,3 +343,102 @@ plt.grid(True)
 
 plt.show()
 
+
+def add_total_row(df):
+    df.loc['Total'] = df.select_dtypes('number').sum()
+
+    # Label the total row in the first column
+    df.at['Total', df.columns[0]] = 'Total'
+
+    return df
+
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+
+# Create a DataFrame with 10 rows and specified columns
+df = pd.DataFrame({
+    'Rank': range(1, 11),  # Rank from 1 to 10
+    'Actuals': np.random.randint(100, 1000, 10),  # Integer values for 'Actuals'
+    'Bad Rate': np.random.uniform(0, 1, 10),
+    'PBad': np.random.uniform(0, 1, 10),
+    'Diff': np.random.uniform(-0.5, 0.5, 10),
+    'Mad': np.random.uniform(0, 1, 10)
+})
+
+# Base CSS
+base_css = """
+<style type='text/css'>
+  :root {
+    --column-color: #1D24CA; /* Color for the first n columns */
+    --column-font-color: #ffffff;
+    --default-border-color: #ddd; /* Border color for table cells */
+    --default-padding: 8px; /* Padding for table cells */
+    --default-text-align: left; /* Text alignment for table cells */
+    --thead-background-color: #201658; /* Background color for the table header */
+    --header-font-color: #ffffff; /* White color for table header font */
+    --row-odd-background-color: #C7C8CC; /* Background color for odd rows */
+    --row-even-background-color: #F2EFE5; /* Background color for even rows */
+    --row-hover-background-color: #A3FFD6; /* Background color on row hover */
+    --transition-duration: 0.3s; /* Duration for hover transition */
+    --transition-easing: ease; /* Easing function for hover transition */
+  }
+  .centered-table-container {
+    display: flex;
+    justify-content: center;
+  }
+  table.grid-table {
+    border-collapse: collapse;
+    margin: auto;
+  }
+  .grid-table th, .grid-table td {
+    border: 1px solid var(--default-border-color);
+    padding: var(--default-padding);
+    text-align: var(--default-text-align);
+  }
+  .grid-table thead th {
+    background-color: var(--thead-background-color);
+    color: var(--header-font-color);
+  }
+  .grid-table tbody tr:nth-child(odd) {
+    background-color: var(--row-odd-background-color);
+  }
+  .grid-table tbody tr:nth-child(even) {
+    background-color: var(--row-even-background-color);
+  }
+  .grid-table tbody tr:hover {
+    background-color: var(--row-hover-background-color);
+    transform: scale(1.02);
+    transition: transform var(--transition-duration) var(--transition-easing);
+  }
+</style>
+"""
+
+# User-defined number of columns to color
+num_colored_columns = 1
+
+# Additional CSS for dynamically coloring columns
+additional_css = "<style type='text/css'>"
+for i in range(1, num_colored_columns + 1):
+    additional_css += f"""
+    .grid-table td:nth-child({i}) {{
+        background-color: var(--column-color);
+        color: var(--column-font-color);
+    }}
+    """
+additional_css += "</style>"
+
+# Combine the base and additional CSS
+full_css = base_css + additional_css
+
+# Process the DataFrame
+processed_df = df.pipe(add_total_row)
+
+# Convert DataFrame to HTML without the index and apply CSS
+html_data = processed_df.to_html(index=False, classes="grid-table")
+styled_html = '<div class="centered-table-container">' + html_data + '</div>' + full_css
+
+# Display the styled table in Jupyter Notebook
+display(HTML(styled_html))
