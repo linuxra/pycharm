@@ -506,3 +506,23 @@ full_html = f'''
 
 # Render the full HTML
 display(HTML(full_html))
+
+
+styles = [
+    {'selector': '.centered-table-container', 'props': [('display', 'flex'), ('justify-content', 'center')]},
+    {'selector': 'table.grid-table', 'props': [('border-collapse', 'collapse'), ('margin', 'auto')]},
+    {'selector': '.grid-table th, .grid-table td', 'props': [('border', '1px solid var(--default-border-color)'), ('padding', 'var(--default-padding)'), ('text-align', 'var(--default-text-align)')]},
+    {'selector': '.grid-table thead th', 'props': [('background-color', 'var(--thead-background-color)'), ('color', 'var(--header-font-color)')]},
+    {'selector': '.grid-table tbody tr:nth-child(odd)', 'props': [('background-color', 'var(--row-odd-background-color)')]},
+    {'selector': '.grid-table tbody tr:nth-child(even)', 'props': [('background-color', 'var(--row-even-background-color)')]},
+    {'selector': '.grid-table tbody tr:hover', 'props': [('background-color', 'var(--row-hover-background-color)'), ('transform', 'scale(1.02)'), ('transition', 'transform var(--transition-duration) var(--transition-easing)')]},
+]
+
+# User-defined number of columns to color
+num_colored_columns = 1
+
+additional_styles = []
+for i in range(1, num_colored_columns + 1):
+    additional_styles.append({'selector': f'.grid-table td:nth-child({i})', 'props': [('background-color', 'var(--column-color)'), ('color', 'var(--column-font-color)')]})
+
+styles += additional_styles
