@@ -544,3 +544,42 @@ data_url = f"data:application/vnd.openxmlformats-officedocument.spreadsheetml.sh
 display_url = data_url[:50] + "..." if len(data_url) > 50 else data_url
 display_url
 <a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,[BASE64_STRING]" download="your_file_name.xlsx">Download Excel File</a>
+
+
+import pandas as pd
+
+# Function to apply color based on condition
+def color_value(val):
+    if isinstance(val, (int, float)):
+        val = val * 100
+        color = 'green' if val < 25 else 'yellow'
+        return f'color: {color};'
+    else:
+        return ''
+
+# Function to format text
+def text_format(val):
+    if isinstance(val, (int, float)):
+        val = val * 100
+        return f'{val:.2f}%'
+    else:
+        return val
+
+# Custom function that styles and renders the DataFrame
+def style_and_render(df):
+    styled = df.style.applymap(color_value)
+    styled = styled.format(text_format, na_rep="", escape=False)
+    return styled.render(escape=False)
+
+# Sample DataFrame
+df = pd.DataFrame({
+    'A': [0.1, 0.2, 0.3],
+    'B': [0.4, 0.5, 0.6],
+    'C': ['x', 'y', 'z']  # Non-numeric column for demonstration
+})
+
+# Using pipe to apply the custom function
+html_output = df.pipe(style_and_render)
+
+# html_output now contains the HTML representation
+# It can be displayed in environments that support HTML, like Jupyter Notebook
