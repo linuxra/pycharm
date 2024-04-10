@@ -617,3 +617,22 @@ styled_df = df.pipe(lambda x: x.style.pipe(*funcs)).hide_index()
 
 # Now you can display styled_df in a Jupyter Notebook to see the styles
 # If you need to render this as HTML, you can use styled_df.render()
+# Function to apply custom style
+def apply_custom_style(df):
+    # Function to color values. This is applied after multiplying by 100
+    def color_value(val):
+        if isinstance(val, (int, float)):
+            val = val * 100  # Multiply by 100
+            color = 'green' if val < 25 else 'yellow'  # Apply color based on the multiplied value
+            return f'color: {color};'
+        return ''
+
+    # Apply the color function to each cell in the DataFrame
+    styled_df = df.style.applymap(color_value)
+
+    # Format the numeric values: Multiply by 100 and format as percentages
+    # This is where the multiplication and formatting are happening
+    formatted_df = styled_df.format("{:.2f}%", na_rep="",
+                                    subset=pd.IndexSlice[:, df.select_dtypes(include=[float, int]).columns])
+
+    return formatted_df
