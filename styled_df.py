@@ -583,3 +583,37 @@ html_output = df.pipe(style_and_render)
 
 # html_output now contains the HTML representation
 # It can be displayed in environments that support HTML, like Jupyter Notebook
+import pandas as pd
+
+# Sample DataFrame
+df = pd.DataFrame({
+    'A': [0.1, 0.2, 0.3],
+    'B': [0.4, 0.5, 0.6],
+    'C': ['x', 'y', 'z']  # Non-numeric column for demonstration
+})
+
+# Custom function to apply color and percentage formatting to numeric columns
+def apply_custom_style(df):
+    # Function to color values
+    def color_value(val):
+        if isinstance(val, (int, float)):
+            val = val * 100
+            color = 'green' if val < 25 else 'yellow'
+            return f'color: {color};'
+        return ''
+
+    # Apply color to numeric columns and format them
+    styled_df = df.style.applymap(color_value)
+    return styled_df.format("{:.2f}%", na_rep="", subset=pd.IndexSlice[:, df.select_dtypes(include=[float, int]).columns])
+
+# Sequence of functions to apply
+funcs = [
+    apply_custom_style,
+    # You can add other functions here for more styling
+]
+
+# Applying the functions using pipe and hiding the index
+styled_df = df.pipe(lambda x: x.style.pipe(*funcs)).hide_index()
+
+# Now you can display styled_df in a Jupyter Notebook to see the styles
+# If you need to render this as HTML, you can use styled_df.render()
