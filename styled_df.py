@@ -693,3 +693,41 @@ processed_df = df.pipe(process_columns, ['Text'])
 
 # Display the result
 HTML(processed_df.to_html(escape=False))
+
+
+def process_columns_with_colon(df, columns):
+    def process_text_with_ul_convert_str_and_colon(cell):
+        # Convert cell to string
+        cell_str = str(cell)
+
+        # Removing <ul> and </ul> tags
+        cell_str = re.sub(r'</?ul>', '', cell_str)
+
+        # Finding all <li> items
+        items = re.findall(r'<li><strong>(.*?)</strong>(.*?)</li>', cell_str)
+
+        # Check if any items were found
+        if not items:
+            return cell  # Return original cell content if no pattern match
+
+        # Processing each item
+        processed_items = []
+        for word, text in items:
+            # Making the word bold, adding a colon and space, and appending the text
+            processed_items.append(f"<b>{word}</b>: {text.strip()}")
+
+        # Joining all items with a line break
+        return '<br>'.join(processed_items)
+
+    for column in columns:
+        df[column] = df[column].apply(process_text_with_ul_convert_str_and_colon)
+
+    return df
+
+
+# Apply the improved function to specific columns using pipe
+processed_df_with_colon = df.pipe(process_columns_with_colon, ['Text'])
+
+# Display the result
+HTML(processed_df_with_colon.to_html(escape=False))
+
