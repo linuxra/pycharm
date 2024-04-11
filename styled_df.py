@@ -636,3 +636,27 @@ def apply_custom_style(df):
                                     subset=pd.IndexSlice[:, df.select_dtypes(include=[float, int]).columns])
 
     return formatted_df
+
+
+def process_text_with_ul(cell):
+    # Removing <ul> and </ul> tags
+    cell = re.sub(r'</?ul>', '', cell)
+
+    # Finding all <li> items
+    items = re.findall(r'<li><strong>(.*?)</strong>(.*?)</li>', cell)
+
+    # Processing each item
+    processed_items = []
+    for word, text in items:
+        # Making the word bold and appending the text
+        processed_items.append(f"<b>{word}</b>{text}")
+
+    # Joining all items with a line break
+    return '<br>'.join(processed_items)
+
+
+# Apply the new function to the dataframe
+df['Processed Text with UL'] = df['Text'].apply(process_text_with_ul)
+
+# Display the result
+HTML(df.to_html(escape=False))
