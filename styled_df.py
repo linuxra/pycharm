@@ -731,3 +731,29 @@ processed_df_with_colon = df.pipe(process_columns_with_colon, ['Text'])
 # Display the result
 HTML(processed_df_with_colon.to_html(escape=False))
 
+def process_columns_aligned(df, columns):
+    def process_text_aligned(cell):
+        # Convert cell to string and split into lines
+        lines = str(cell).split('\n')
+
+        # Process each line
+        processed_lines = []
+        for line in lines:
+            # Removing <ul> and </ul> tags
+            line = re.sub(r'</?ul>', '', line)
+
+            # Finding all <li> items
+            items = re.findall(r'<li><strong>(.*?)</strong>(.*?)</li>', line)
+
+            # Check if any items were found
+            if not items:
+                processed_lines.append(line.strip())  # Strip and keep original line
+                continue
+
+            # Process each <li> item
+            for word, text in items:
+                # Making the word bold, adding a colon and space, and appending the text
+                processed_lines.append(f"<b>{word.strip()}</b>: {text.strip()}")
+
+        # Joining all processed lines with a line break
+        return '<br>'.join(processed_lines)
