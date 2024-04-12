@@ -757,3 +757,44 @@ def process_columns_aligned(df, columns):
 
         # Joining all processed lines with a line break
         return '<br>'.join(processed_lines)
+
+
+def parse_and_create_function(input_string):
+    # Parse the input string to get all ranges
+    ranges = input_string.split()
+
+    # Initialize the lists for starts and ends
+    starts = []
+    ends = []
+
+    # Initialize parts of the function
+    function_str = "def fico_ranges(score):\n"
+
+    # Loop through each range description
+    for r in ranges:
+        start_end, _ = r.split('=')
+        start, end = start_end.split('-')
+
+        # Append to lists
+        starts.append(start)
+        ends.append(end)
+
+        # Add conditional statements to function string
+        function_str += f"    if score >= {start} and score <= {end}:\n"
+        function_str += f"        return '{start}-{end}'\n"
+
+    # Return the final function string and the lists
+    return function_str, starts, ends
+
+
+# Define the input string
+input_string = "300-671='300-671' 672-700='672-700'"
+
+# Generate the function and lists
+function_code, starts, ends = parse_and_create_function(input_string)
+
+# Print results
+print("Function Code:")
+print(function_code)
+print("Starts:", starts)
+print("Ends:", ends)
