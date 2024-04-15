@@ -798,3 +798,39 @@ print("Function Code:")
 print(function_code)
 print("Starts:", starts)
 print("Ends:", ends)
+import pandas as pd
+import numpy as np
+
+
+def filter_dataframe(df, seed=None, threshold=0.1):
+    """
+    Filter a DataFrame based on a random condition applied to each row.
+
+    Parameters:
+    - df: pandas.DataFrame to be filtered.
+    - seed: int, optional seed for random number generator for reproducibility.
+    - threshold: float, the threshold for filtering; defaults to 0.1.
+
+    Returns:
+    - pandas.DataFrame containing only the rows that meet the random condition.
+    """
+    if seed is not None:
+        np.random.seed(seed)
+
+    # Create a random condition for each row
+    df['Include'] = np.random.uniform(0, 1, size=len(df)) < threshold
+
+    # Filter and return the DataFrame based on the condition
+    return df[df['Include']].drop(columns=['Include'])
+
+
+# Example usage:
+data = {
+    'Name': ['Alice', 'Bob', 'Charlie', 'David', 'Eva'],
+    'Age': [25, 30, 35, 40, 45],
+    'City': ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix']
+}
+original_df = pd.DataFrame(data)
+filtered_df = filter_dataframe(original_df, seed=12345)
+
+print(filtered_df)
