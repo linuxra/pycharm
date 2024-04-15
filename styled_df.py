@@ -834,3 +834,62 @@ original_df = pd.DataFrame(data)
 filtered_df = filter_dataframe(original_df, seed=12345)
 
 print(filtered_df)
+
+import pandas as pd
+
+
+def compare_dataframes(df_a, df_b, columns_a, columns_b):
+    """
+    Compare two dataframes based on specified columns and return three dataframes:
+    - Rows only in DataFrame A.
+    - Rows in both DataFrame A and DataFrame B.
+    - Rows only in DataFrame B.
+
+    Parameters:
+    - df_a: DataFrame A.
+    - df_b: DataFrame B.
+    - columns_a: List of column names in DataFrame A to join on.
+    - columns_b: List of column names in DataFrame B to join on.
+
+    Returns:
+    - DataFrame of rows only in A.
+    - DataFrame of rows in both A and B.
+    - DataFrame of rows only in B.
+    """
+    # Perform a full outer join on the specified columns
+    merged_df = pd.merge(df_a, df_b, left_on=columns_a, right_on=columns_b, how='outer', indicator=True)
+
+    # Filter the merged dataframe to get the required outputs
+    only_in_a = merged_df[merged_df['_merge'] == 'left_only'].drop(columns=merged_df.columns.intersection(df_b.columns))
+    both_in_a_and_b = merged_df[merged_df['_merge'] == 'both']
+    only_in_b = merged_df[merged_df['_merge'] == 'right_only'].drop(
+        columns=merged_df.columns.intersection(df_a.columns))
+
+    return only_in_a, both_in_a_and_b, only_in_b
+
+
+# Example usage:
+data_a = {
+    'Name': ['Alice', 'Bob', 'Charlie', 'David'],
+    'Age': [25, 30, 35, 40]
+}
+data_b = {
+    'Name': ['Charlie', 'David', 'Eva'],
+    'Age': [35, 40, 45]
+}
+
+df_a = pd.DataFrame(data_a)
+df_b = pd.DataFrame(data_b)
+
+# Columns to compare on
+columns_a = ['Name', 'Age']
+columns_b = ['Name', 'Age']
+
+only_a, both_ab, only_b = compare_dataframes(df_a, df_b, columns_a, columns_b)
+
+print("Only in A:")
+print(only_a)
+print("\nIn both A and B:")
+print(both_ab)
+print("\nOnly in B:")
+print(only_b)
