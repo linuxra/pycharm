@@ -893,3 +893,48 @@ print("\nIn both A and B:")
 print(both_ab)
 print("\nOnly in B:")
 print(only_b)
+
+import pandas as pd
+
+# Sample DataFrame
+data = {
+    'A': [10, 20, "30%", "40%", "50%"],
+    'B': ["55%", "65%", "75%", "85%", "45%"],
+    'C': [100, 90, 80, 70, "60%"]
+}
+df = pd.DataFrame(data)
+
+
+def highlight_last_value(data, column, color_if_low='red', color_if_high='green', threshold=50):
+    """
+    Function to highlight the last value in a specified column based on conditions. Converts strings with '%' to float.
+
+    Args:
+    data (pd.DataFrame): The DataFrame to style.
+    column (str): The column to apply styles to.
+    color_if_low (str): Color for values below the threshold.
+    color_if_high (str): Color for values above or equal to the threshold.
+    threshold (int): The threshold value to compare against.
+
+    Returns:
+    pd.DataFrame: A DataFrame with styles applied.
+    """
+    # Convert column if it contains strings with '%'
+    if data[column].dtype == object and any(isinstance(x, str) and '%' in x for x in data[column]):
+        data[column] = data[column].replace('%', '', regex=True).astype(float) / 100.0 * 100
+
+    # Define a style function for the column
+    def style_column(s):
+        # Create an array of empty strings for colors with the last value styled
+        colors = [''] * (len(s) - 1) + [
+            color_if_low if s.iloc[-1] < threshold else color_if_high
+        ]
+        return ['background-color: ' + color for color in colors]
+
+    # Apply the style function to the specified column
+    return data.style.apply(style_column, subset=[column])
+
+
+# Using pipe to apply the style function to a specific column
+styled_df = df.pipe(highlight_last_value, column='B')
+styled_df
