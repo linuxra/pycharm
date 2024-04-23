@@ -1,7 +1,8 @@
 
 
-
+import random
 def color_conditionally(styler, cols):
+    """"""
     def colorize(val):
         # Convert string percentages to float if necessary
         if isinstance(val, str) and '%' in val:
@@ -34,10 +35,10 @@ columns_for_conditional = ['Column2', 'Column3']
 
 # Apply styles
 styled_df = (df.style
-               .pipe(color_columns, columns_to_color, '#add8e6')  # Light blue background for specific columns
-               .pipe(color_conditionally, columns_for_conditional)  # Conditional coloring on other columns
-               .set_table_styles(styles)
-               .hide_index())
+             .pipe(color_columns, columns_to_color, '#add8e6')  # Light blue background for specific columns
+             .pipe(color_conditionally, columns_for_conditional)  # Conditional coloring on other columns
+             .set_table_styles(styles)
+             .hide_index())
 
 # Display styled DataFrame in Jupyter Notebook
 styled_df
@@ -938,3 +939,52 @@ def highlight_last_value(data, column, color_if_low='red', color_if_high='green'
 # Using pipe to apply the style function to a specific column
 styled_df = df.pipe(highlight_last_value, column='B')
 styled_df
+
+
+import pandas as pd
+import ast
+from pathlib import Path
+
+def python_dicts_to_excel(py_file_path, output_excel_path):
+    """
+    Reads dictionaries from a Python script and writes each to a separate sheet in an Excel workbook.
+
+    Args:
+    py_file_path (str or Path): Path to the Python file containing dictionaries.
+    output_excel_path (str or Path): Path to the output Excel file.
+
+    Returns:
+    None
+    """
+    # Function to extract dictionaries using AST
+    def extract_dictionaries(py_file_path):
+        """ Extracts dictionaries from a Python file using AST. """
+        with open(py_file_path, "r") as file:
+            tree = ast.parse(file.read(), filename=str(py_file_path))
+
+        return {
+            node.targets[0].id: ast.literal_eval(node.value)
+            for node in tree.body
+            if isinstance(node, ast.Assign)
+            if isinstance(node.value, ast.Dict)
+        }
+
+    # Extract dictionaries
+    dicts = extract_dictionaries(py_file_path)
+
+    # Function to write dictionaries to Excel
+    def dicts_to_excel(dicts, output_excel_path):
+        """ Writes each dictionary to a separate sheet in an Excel workbook. """
+        with pd.ExcelWriter(output_excel_path, engine='openpyxl') as writer:
+            for name, data in dicts.items():
+                df = pd.DataFrame(data)
+                df.to_excel(writer, sheet_name=name, index=False)
+
+    # Write dictionaries to Excel
+    dicts_to_excel(dicts, output_excel_path)
+    print(f"Dictionaries from {py_file_path} have been written to {output_excel_path}")
+
+# Example Usage
+python_file_path = 'data.py'  # Path to your Python file containing dictionaries
+excel_output_path = 'output.xlsx'  # Path for the output Excel file
+python_dicts_to_excel(python_file_path, excel_output_path)
