@@ -988,3 +988,76 @@ def python_dicts_to_excel(py_file_path, output_excel_path):
 python_file_path = 'data.py'  # Path to your Python file containing dictionaries
 excel_output_path = 'output.xlsx'  # Path for the output Excel file
 python_dicts_to_excel(python_file_path, excel_output_path)
+
+
+from dataclasses import dataclass, field, InitVar
+from pathlib import Path
+
+@dataclass
+class Config:
+    """
+    A configuration class for managing and constructing directory paths for application data and logs.
+    """
+    base_directory: InitVar[Path] = None
+    """
+    The base directory for all related subdirectories.
+    """
+    _base_directory: Path = field(init=False, repr=False)
+    """
+    The base directory path.
+    """
+    _data_directory: Path = field(init=False, repr=False)
+    """
+    The data directory path.
+    """
+    _logs_directory: Path = field(init=False, repr=False)
+    """
+    The logs directory path.
+    """
+    logger: object = field(init=False, repr=False)
+    """
+    The logger object.
+    """
+
+    def __post_init__(self, base_directory: Path):
+        """
+        Post-initialization to set up the base directory and update subdirectories.
+        If no base directory is provided, uses the current working directory.
+        """
+        self._base_directory = base_directory or Path.cwd()
+        self.update_directories()
+        self.logger = "CustomLogger(NAME)"  # Replace with your actual logger
+
+    def update_directories(self):
+        """
+        Updates the paths for data_directory and logs_directory based on the current base_directory.
+        Creates these directories if they do not exist.
+        """
+        self._data_directory = self._base_directory / "data"
+        self._logs_directory = self._base_directory / "logs"
+        self._data_directory.mkdir(parents=True, exist_ok=True)
+        self._logs_directory.mkdir(parents=True, exist_ok=True)
+
+    @property
+    def data_directory(self) -> Path:
+        """
+        Property to access the data directory path.
+        """
+        return self._data_directory
+
+    @property
+    def logs_directory(self) -> Path:
+        """
+        Property to access the logs directory path.
+        """
+        return self._logs_directory
+
+    def __str__(self):
+        """
+        Returns a string representation of the object, with each attribute on a separate line.
+        """
+        return '\n'.join(f'{key}: {value}' for key, value in self.__dict__.items() if not key.startswith('_'))
+
+# Usage
+config_default = Config()
+print(config_default)
