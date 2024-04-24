@@ -1061,3 +1061,28 @@ class Config:
 # Usage
 config_default = Config()
 print(config_default)
+
+
+import base64
+
+def convert_pdf_to_base64_html(pdf_file_path):
+    # Open PDF file in binary mode
+    with open(pdf_file_path, "rb") as pdf_file:
+        # Read the PDF file
+        pdf_data = pdf_file.read()
+
+        # Encode PDF data to base64
+        base64_pdf = base64.b64encode(pdf_data).decode('utf-8')
+
+        # Create an HTML string with the base64 encoded PDF
+        html_string = f'<embed src="data:application/pdf;base64,{base64_pdf}" type="application/pdf" width="100%" height="600px" />'
+        return html_string
+
+# Path to your PDF file
+path_to_pdf = 'path_to_your_pdf_file.pdf'
+
+# Convert and get the HTML string
+html_pdf = convert_pdf_to_base64_html(path_to_pdf)
+
+# Now html_pdf contains the HTML code you can use directly
+print(html_pdf)
