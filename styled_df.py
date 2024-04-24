@@ -1205,3 +1205,85 @@ styled_html = render_styled_df(df)
 display(HTML(styled_html.render()))  # Render the HTML in a Jupyter notebook cell
 
 
+import pandas as pd
+import base64
+from IPython.display import display, HTML
+
+def generate_html_download_link(file_path, output_filename):
+    """
+    Generate a Base64 encoded download link for a given file, wrapped in an HTML anchor tag for downloading.
+
+    Args:
+    file_path (str): Path to the file on disk.
+    output_filename (str): Filename suggested for the download.
+
+    Returns:
+    str: HTML anchor tag with a href attribute containing the Base64 encoded data and download attribute.
+    """
+    # Define MIME types based on file extensions
+    mime_types = {
+        '.pdf': 'application/pdf',
+        '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    }
+    file_extension = '.' + file_path.split('.')[-1]
+    mime_type = mime_types.get(file_extension)
+
+    if not mime_type:
+        raise ValueError("Unsupported file type")
+
+    # Read the file and encode it to Base64
+    with open(file_path, "rb") as file:
+        base64_encoded_data = base64.b64encode(file.read()).decode('utf-8')
+
+    # Return the formatted HTML anchor link
+    return f'<a href="data:{mime_type};base64,{base64_encoded_data}" download="{output_filename}">Download {output_filename}</a>'
+
+def create_files_info_dataframe(file_paths):
+    """
+    Create a DataFrame containing descriptions and downloadable HTML links for files.
+
+    Args:
+    file_paths (dict): A dictionary with keys as file types and values as tuples (file path, output filename).
+
+    Returns:
+    pd.DataFrame: A DataFrame with columns for 'File Type' and 'Download Link'.
+    """
+    data = {
+        'File Type': [],
+        'Download Link': []
+    }
+
+    for filetype, paths in file_paths.items():
+        link = generate_html_download_link(*paths)
+        data['File Type'].append(filetype)
+        data['Download Link'].append(link)
+
+    return pd.DataFrame(data)
+
+def render_dataframe_as_html(df):
+    """
+    Render a Pandas DataFrame as HTML with clickable links, displaying it within a Jupyter Notebook.
+
+    Args:
+    df (pd.DataFrame): DataFrame containing HTML data to be rendered.
+
+    Uses IPython.display to render the DataFrame as HTML in the notebook.
+    """
+    html = df.to_html(escape=False)  # Convert DataFrame to HTML, not escaping HTML tags
+    display(HTML(html))
+
+# Define paths to files and corresponding output filenames
+file_paths = {
+    'PDF': ('path_to_your_pdf_file.pdf', 'example.pdf'),
+    'PowerPoint': ('path_to_your_presentation.pptx', 'presentation.pptx'),
+    'Excel': ('path_to_your_spreadsheet.xlsx', 'spreadsheet.xlsx')
+}
+
+# Generate the DataFrame containing file information and download links
+df = create_files_info_dataframe(file_paths)
+
+# Display the DataFrame with styled HTML output in a Jupyter Notebook
+render_dataframe_as_html(df)
+
+
