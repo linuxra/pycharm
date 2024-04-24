@@ -1112,3 +1112,96 @@ html_pdf_link = convert_pdf_to_download_link(path_to_pdf)
 # Now html_pdf_link contains the HTML code you can use directly
 print(html_pdf_link)
 
+
+import base64
+import pandas as pd
+from IPython.display import HTML
+
+def generate_download_link(file_path, output_filename):
+    """
+    Generate a Base64 encoded download link for a given file.
+
+    Args:
+    file_path (str): Path to the file on disk.
+    output_filename (str): Filename for the output link.
+
+    Returns:
+    str: A Base64 encoded string formatted as a data URL.
+    """
+    # MIME types based on file extension
+    mime_types = {
+        '.pdf': 'application/pdf',
+        '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    }
+    file_extension = file_path.split('.')[-1]
+    mime_type = mime_types.get(f'.{file_extension}', None)
+
+    if mime_type is None:
+        raise ValueError("Unsupported file type")
+
+    # Read the file and encode it to Base64
+    with open(file_path, "rb") as file:
+        base64_encoded_data = base64.b64encode(file.read()).decode('utf-8')
+
+    # Return the formatted data URL
+    return f"data:{mime_type};base64,{base64_encoded_data}"
+
+def create_files_info_dict(paths):
+    """
+    Create a dictionary containing file types, descriptions, and download links.
+
+    Args:
+    paths (dict): A dictionary with keys as descriptions and values as file paths.
+
+    Returns:
+    dict: A dictionary suitable for DataFrame conversion.
+    """
+    files_info = {
+        "File Type": ["PDF", "PowerPoint", "Excel"],
+        "Description": ["Annual Report PDF", "Sales Presentation PPTX", "Financial Data XLSX"],
+        "Download Link": [
+            generate_download_link(paths['pdf'], 'downloaded_document.pdf'),
+            generate_download_link(paths['pptx'], 'presentation.pptx'),
+            generate_download_link(paths['xlsx'], 'spreadsheet.xlsx')
+        ]
+    }
+    return files_info
+
+def render_styled_df(dataframe):
+    """
+    Apply styling to a DataFrame for HTML display.
+
+    Args:
+    dataframe (pd.DataFrame): The DataFrame to style.
+
+    Returns:
+    Styler: A Pandas Styler object configured for HTML display.
+    """
+    return dataframe.style.set_properties(**{
+        'background-color': 'white',
+        'color': 'black',
+        'border-color': 'black'
+    }).hide_index().set_table_styles([
+        {'selector': 'th', 'props': [('background-color', '#f4f4f4'), ('font-size', '16px')]},
+        {'selector': 'td', 'props': [('font-size', '14px')]}
+    ])
+
+# Paths to files
+file_paths = {
+    'pdf': 'path_to_your_pdf_file.pdf',
+    'pptx': 'path_to_your_pptx_file.pptx',
+    'xlsx': 'path_to_your_xlsx_file.xlsx'
+}
+
+# Generate information dictionary
+files_info = create_files_info_dict(file_paths)
+
+# Convert to DataFrame
+df = pd.DataFrame(files_info)
+
+# Style and display the DataFrame
+styled_html = render_styled_df(df)
+display(HTML(styled_html.render()))  # Render the HTML in a Jupyter notebook cell
+
+
