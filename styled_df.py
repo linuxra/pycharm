@@ -1086,3 +1086,29 @@ html_pdf = convert_pdf_to_base64_html(path_to_pdf)
 
 # Now html_pdf contains the HTML code you can use directly
 print(html_pdf)
+
+
+import base64
+
+def convert_pdf_to_download_link(pdf_file_path):
+    # Open PDF file in binary mode
+    with open(pdf_file_path, "rb") as pdf_file:
+        # Read the PDF file
+        pdf_data = pdf_file.read()
+
+        # Encode PDF data to base64
+        base64_pdf = base64.b64encode(pdf_data).decode('utf-8')
+
+        # Create an HTML string with a downloadable link
+        download_link = f'<a href="data:application/pdf;base64,{base64_pdf}" download="filename.pdf">Download PDF</a>'
+        return download_link
+
+# Path to your PDF file
+path_to_pdf = 'path_to_your_pdf_file.pdf'
+
+# Convert and get the download link HTML string
+html_pdf_link = convert_pdf_to_download_link(path_to_pdf)
+
+# Now html_pdf_link contains the HTML code you can use directly
+print(html_pdf_link)
+
