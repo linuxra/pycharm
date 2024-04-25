@@ -1287,3 +1287,41 @@ df = create_files_info_dataframe(file_paths)
 render_dataframe_as_html(df)
 
 
+def style_header(styler, columns, bg_color, text_color, default_bg_color='#F0F0F0', default_text_color='black'):
+    """
+    Style the header of a DataFrame for specific columns with custom background and text colors.
+
+    Parameters:
+    - styler (Styler): The Styler object representing the styled DataFrame.
+    - columns (list): A list of column names to apply the custom styling to.
+    - bg_color (str): The background color for the specified columns.
+    - text_color (str): The text color for the specified columns.
+    - default_bg_color (str): The default background color for the remaining columns. Default is '#F0F0F0'.
+    - default_text_color (str): The default text color for the remaining columns. Default is 'black'.
+
+    Returns:
+    - styler (Styler): The modified Styler object with the header styling applied.
+    """
+
+    def color_header(column):
+        """
+        Helper function to determine the background and text color for each column.
+
+        Parameters:
+        - column (str): The column name.
+
+        Returns:
+        - str: The CSS style string for the column.
+        """
+        if column in columns:
+            return f"background-color: {bg_color}; color: {text_color}"
+        else:
+            return f"background-color: {default_bg_color}; color: {default_text_color}"
+
+    # Apply an empty style to the header row
+    styler.applymap(lambda x: "", subset=pd.IndexSlice[0, :])
+
+    # Apply the color_header function to the header row to set the background and text colors
+    styler.applymap(color_header, subset=pd.IndexSlice[0, :])
+
+    return styler
