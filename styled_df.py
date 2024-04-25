@@ -1286,6 +1286,7 @@ df = create_files_info_dataframe(file_paths)
 # Display the DataFrame with styled HTML output in a Jupyter Notebook
 render_dataframe_as_html(df)
 
+import pandas as pd
 
 def style_header(styler, columns, bg_color, text_color, default_bg_color='#F0F0F0', default_text_color='black'):
     """
@@ -1303,22 +1304,23 @@ def style_header(styler, columns, bg_color, text_color, default_bg_color='#F0F0F
     - styler (Styler): The modified Styler object with the header styling applied.
     """
 
-    # Create a dictionary to map each column to its corresponding styles
-    column_styles = {
-        col: [f"background-color: {bg_color}", f"color: {text_color}"]
-        for col in columns
-    }
+    # Define styles for specific and default headers
+    styles = []
+    for col in styler.columns:
+        if col in columns:
+            # Apply specific styles to specified columns
+            styles.append({
+                'selector': f'th.col_heading.level0.col{styler.columns.get_loc(col)}',
+                'props': [('background-color', bg_color), ('color', text_color)]
+            })
+        else:
+            # Apply default styles to other columns
+            styles.append({
+                'selector': f'th.col_heading.level0.col{styler.columns.get_loc(col)}',
+                'props': [('background-color', default_bg_color), ('color', default_text_color)]
+            })
 
-    # Update the dictionary with the default styles for the remaining columns
-    column_styles.update({
-        col: [f"background-color: {default_bg_color}", f"color: {default_text_color}"]
-        for col in styler.columns if col not in columns
-    })
-
-    # Apply the styles to the header row
-    styler.set_table_styles([
-        {'selector': f'th.col_{i}', 'props': column_styles[col]}
-        for i, col in enumerate(styler.columns)
-    ], overwrite=False)
+    # Set the table styles on the styler object
+    styler.set_table_styles(styles)
 
     return styler
