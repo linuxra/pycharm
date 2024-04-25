@@ -1303,22 +1303,22 @@ def style_header(styler, columns, bg_color, text_color, default_bg_color='#F0F0F
     - styler (Styler): The modified Styler object with the header styling applied.
     """
 
-    def color_header(column):
-        """
-        Helper function to determine the background and text color for each column.
+    # Create a dictionary to map each column to its corresponding styles
+    column_styles = {
+        col: [f"background-color: {bg_color}", f"color: {text_color}"]
+        for col in columns
+    }
 
-        Parameters:
-        - column (str): The column name.
+    # Update the dictionary with the default styles for the remaining columns
+    column_styles.update({
+        col: [f"background-color: {default_bg_color}", f"color: {default_text_color}"]
+        for col in styler.columns if col not in columns
+    })
 
-        Returns:
-        - str: The CSS style string for the column.
-        """
-        if column.name in columns:
-            return [f"background-color: {bg_color}", f"color: {text_color}"]
-        else:
-            return [f"background-color: {default_bg_color}", f"color: {default_text_color}"]
-
-    # Apply the color_header function to the header row to set the background and text colors
-    styler.apply_index(color_header, axis=1)
+    # Apply the styles to the header row
+    styler.set_table_styles([
+        {'selector': f'th.col_{i}', 'props': column_styles[col]}
+        for i, col in enumerate(styler.columns)
+    ], overwrite=False)
 
     return styler
