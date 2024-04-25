@@ -1313,15 +1313,12 @@ def style_header(styler, columns, bg_color, text_color, default_bg_color='#F0F0F
         Returns:
         - str: The CSS style string for the column.
         """
-        if column in columns:
-            return f"background-color: {bg_color}; color: {text_color}"
+        if column.name in columns:
+            return [f"background-color: {bg_color}", f"color: {text_color}"]
         else:
-            return f"background-color: {default_bg_color}; color: {default_text_color}"
-
-    # Apply an empty style to the header row
-    styler.applymap(lambda x: "", subset=pd.IndexSlice[0, :])
+            return [f"background-color: {default_bg_color}", f"color: {default_text_color}"]
 
     # Apply the color_header function to the header row to set the background and text colors
-    styler.applymap(color_header, subset=pd.IndexSlice[0, :])
+    styler.apply_index(color_header, axis=1)
 
     return styler
