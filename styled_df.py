@@ -1324,3 +1324,46 @@ def style_header(styler, columns, bg_color, text_color, default_bg_color='#F0F0F
     styler.set_table_styles(styles)
 
     return styler
+
+import pandas as pd
+
+def highlight_and_format_last_value(data, column, color_if_low='red', color_if_high='green', threshold=50):
+    """
+    Function to highlight and format the last value in a specified column based on conditions. Converts strings with '%' to float and formats the last value. This function is designed to be used within DataFrame.pipe().
+
+    Args:
+    data (pd.DataFrame): The DataFrame to style.
+    column (str): The column to apply styles to.
+    color_if_low (str): Color for values below the threshold.
+    color_if_high (str): Color for values above or equal to the threshold.
+    threshold (int): The threshold value to compare against.
+
+    Returns:
+    pd.Styler: A DataFrame Styler object with styles applied.
+    """
+    # Convert column if it contains strings with '%'
+    if data[column].dtype == object and any(isinstance(x, str) and '%' in x for x in data[column]):
+        data[column] = data[column].replace('%', '', regex=True).astype(float) / 100.0 * 100
+
+    # Define a style function for the column
+    def style_column(s):
+        # Format the last value to five decimals with a '%'
+        formatted_values = [f"{x:.5f}%" for x in s]
+        formatted_values[-1] = f"{s.iloc[-1]:.5f}%"
+
+        # Create an array of empty strings for colors with the last value styled
+        colors = [''] * (len(s) - 1) + [
+            color_if_low if s.iloc[-1] < threshold else color_if_high
+        ]
+        return ['background-color: ' + color for color in colors], formatted_values
+
+    # Apply the style function to the specified column and ensure formatting is applied
+    return data.style.apply(style_column, subset=[column], axis=0).format(None, subset=[column])
+
+# Example usage with pipe
+data = pd.DataFrame({
+    'Values': ['20%', '30%', '45%', '55%', '70%']
+})
+
+highlighted_df = data.pipe(highlight_and_format_last_value, 'Values')
+highlighted_df
