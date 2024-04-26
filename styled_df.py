@@ -1420,3 +1420,14 @@ data = pd.DataFrame({
 
 highlighted_df = data.pipe(highlight_and_format_last_value, 'Values')
 highlighted_df
+def format_last_value(styler, column):
+    # Function to extract the data from the Styler, format the last value, and reapply the Styler
+    df = styler.data  # Get the DataFrame from the Styler object
+    last_val = df[column].iloc[-1] * 100  # Multiply the last value by 100
+    formatted_last_val = f"{last_val:.5f}%"  # Format to five decimals with '%'
+
+    # Update the DataFrame used in the Styler
+    df.loc[df.index[-1], column] = formatted_last_val
+
+    # Reapply any styles if necessary, or create new styles
+    return styler.use(df)  # Reuse the same styling with updated data
