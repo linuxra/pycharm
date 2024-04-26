@@ -1367,3 +1367,56 @@ data = pd.DataFrame({
 
 highlighted_df = data.pipe(highlight_and_format_last_value, 'Values')
 highlighted_df
+
+
+
+import pandas as pd
+
+def highlight_and_format_last_value(data, column, color_if_low='red', color_if_high='green', threshold=50):
+    """
+    Function to highlight and format only the last value in a specified column based on conditions.
+    Converts strings with '%' to float, multiplies the last value by 100, formats it to five decimals
+    with a '%' sign, and applies background color based on the threshold.
+
+    Args:
+        data (pd.DataFrame): The DataFrame to style.
+        column (str): The column to apply styles to.
+        color_if_low (str): Color for values below the threshold.
+        color_if_high (str): Color for values above or equal to the threshold.
+        threshold (int): The threshold value to compare against.
+
+    Returns:
+        pd.Styler: A DataFrame Styler object with styles applied.
+    """
+    # Convert column values to float if necessary
+    if data[column].dtype == object:
+        data[column] = data[column].str.rstrip('%').astype(float) / 100
+
+    # Function to apply styles based on the threshold
+    def style_column(s):
+        colors = [''] * len(s)  # Initialize all cells with no background color
+        # Determine color for the last value based on the threshold
+        last_value = s.iloc[-1] * 100  # Assume the column values are in fraction form
+        color = color_if_low if last_value < threshold else color_if_high
+        colors[-1] = 'background-color: ' + color
+        return colors
+
+    # Apply the style function to the specified column
+    styled_data = data.style.apply(style_column, subset=[column], axis=0)
+
+    # Custom format only the last value in the column
+    formatted_values = [f"{x}" for x in data[column]]  # Default formatting for other values
+    formatted_values[-1] = f"{data[column].iloc[-1] * 100:.5f}%"  # Format only the last value
+
+    # Apply custom formatting to the specified column
+    styled_data = styled_data.format({column: lambda x: formatted_values.pop(0)})
+
+    return styled_data
+
+# Example usage with pipe
+data = pd.DataFrame({
+    'Values': [0.20, 0.30, 0.45, 0.55, 0.70]
+})
+
+highlighted_df = data.pipe(highlight_and_format_last_value, 'Values')
+highlighted_df
