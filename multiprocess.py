@@ -46,14 +46,14 @@ def multiprocess_functions(
 def square_number(n):
     import time
 
-    time.sleep(1)  # Simulate a delay
+    time.sleep(10)  # Simulate a delay
     return n * n
 
 
 def repeat_string(s):
     import time
 
-    time.sleep(2)  # Simulate a longer delay
+    time.sleep(20)  # Simulate a longer delay
     return s + s
 
 
@@ -76,7 +76,7 @@ if __name__ == "__main__":
         functions=functions,
         params=params,
         num_processes=3,
-        timeout=5,
+        timeout=30,
         progress_bar=True,
     )
 
