@@ -1431,3 +1431,31 @@ def format_last_value(styler, column):
 
     # Reapply any styles if necessary, or create new styles
     return styler.use(df)  # Reuse the same styling with updated data
+def generate_html_with_colored_value(psi_value):
+    """
+    Generates HTML content with a colored 'PSI Value' based on the given psi_value.
+
+    Args:
+    psi_value (int or float): The PSI value based on which the background color is determined.
+
+    Returns:
+    str: A string containing HTML content with the PSI value colored appropriately.
+    """
+    # Define color thresholds or logic to select color
+    if psi_value < 50:
+        color = "green"
+    elif psi_value < 100:
+        color = "yellow"
+    elif psi_value < 150:
+        color = "orange"
+    else:
+        color = "red"
+
+    # Generate HTML string with styled span for the PSI value
+    html_content = f'<div>PSI Value is <span style="background-color: {color};">{psi_value}</span></div>'
+    return html_content
+
+# Example usage:
+psi_value = 75  # You can change this value to see different colors
+html_output = generate_html_with_colored_value(psi_value)
+print(html_output)
