@@ -1459,3 +1459,16 @@ def generate_html_with_colored_value(psi_value):
 psi_value = 75  # You can change this value to see different colors
 html_output = generate_html_with_colored_value(psi_value)
 print(html_output)
+
+
+.pretty {
+    font-family: 'Arial', sans-serif; /* Sets the font of the paragraph */
+    font-size: 16px; /* Sets the font size */
+    color: #333333; /* Sets the text color */
+    text-align: center; /* Centers the text */
+    margin: 20px; /* Adds space around the paragraph */
+    padding: 20px; /* Adds space inside the paragraph boundaries */
+    border: 1px solid #cccccc; /* Adds a border around the paragraph */
+    background-color: #f9f9f9; /* Sets the background color of the paragraph */
+    box-shadow: 2px 2px 8px #aaaaaa; /* Adds a subtle shadow to the paragraph */
+}
