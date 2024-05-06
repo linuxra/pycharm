@@ -380,3 +380,49 @@ class QueryManager:
         connection.close()
 
         return table_names
+
+
+from sqlalchemy import create_engine, MetaData, Table, Column, Integer
+from sqlalchemy.ext.declarative import declarative_base
+
+# Initialize the metadata object
+metadata = MetaData()
+# Define a base class for the models
+Base = declarative_base()
+
+
+def generate_class_from_table_name(table_name, engine):
+    """
+    Generate an SQLAlchemy class based on a given table name.
+
+    Parameters:
+        table_name (str): The name of the table.
+        engine (sqlalchemy.engine.base.Engine): The SQLAlchemy engine.
+
+    Returns:
+        type: The generated SQLAlchemy model class.
+    """
+    # Reflect the table from the database
+    table = Table(table_name, metadata, autoload_with=engine)
+
+    # Generate the class name based on the table name
+    class_name = table_name.capitalize()
+
+    # Check if the table has a primary key
+    if not any(col.primary_key for col in table.columns):
+        # Add an auto-incrementing ID column if no primary key exists
+        table.append_column(Column("id", Integer, primary_key=True, autoincrement=True))
+
+    # Create the class attributes
+    class_attrs = {"__tablename__": table_name, "__table__": table}
+    # Generate the class
+    new_class = type(class_name, (Base,), class_attrs)
+
+    # Log the generated class
+    print(f"Class for table '{table_name}' is {new_class}.")
+    return new_class
+
+
+# Example usage:
+# engine = create_engine("teradatasqlalchemy://user:password@host/")
+# MyClass = generate_class_from_table_name("my_table", engine)
