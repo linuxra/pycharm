@@ -488,8 +488,9 @@ def generate_class_from_table_name(table_name, engine, column_names=None):
 
 
 import re
-from sqlalchemy import create_engine, MetaData, Table, case, and_, or_, not_, literal, text
+from sqlalchemy import create_engine, MetaData, Table, case, func, literal, text, or_
 from sqlalchemy.orm import sessionmaker, aliased
+
 
 def generate_orm_query_from_sql(sql_string, engine):
     """
@@ -519,22 +520,34 @@ def generate_orm_query_from_sql(sql_string, engine):
     conditions = where_match.group(1) if where_match else None
 
     # Handle complex CASE statements
-    case_conditions = []
-    for col in columns:
+    for i, col in enumerate(columns):
         if "CASE" in col.upper():
             case_match = re.search(r"CASE\s+(.*?)\s+END\s+AS\s+(\w+)", col, re.IGNORECASE)
             case_logic, case_alias = case_match.groups()
             case_parts = re.findall(r"WHEN\s+(.*?)\s+THEN\s+(.*?)\s", case_logic, re.IGNORECASE)
             case_default = re.search(r"ELSE\s+(.*?)\s", case_logic, re.IGNORECASE).group(1)
-            case_expression = case(
-                [(text(cond), literal(res)) for cond, res in case_parts],
-                else_=literal(case_default)
-            )
-            columns = [case_expression.label(case_alias) if c.strip() == col.strip() else c for c in columns]
+            case_conditions = []
+            for cond, res in case_parts:
+                or_conditions = []
+                substring_matches = re.findall(r"SUBSTRING\((\w+)\.(\w+)\s+FROM\s+(\d+)\s+FOR\s+(\d+)\)\s+IN\s+\((.*?)\)", cond, re.IGNORECASE)
+                for substring_match in substring_matches:
+                    table_alias, column, start, length, in_values = substring_match
+                    start = int(start)
+                    length = int(length)
+                    in_values = [val.strip().strip("'") for val in in_values.split(",")]
+                    table = main_table if table_alias == main_table_alias else [t[0] for t in joins if t[1] == table_alias][0]
+                    or_conditions.append(func.substr(table.c[column], start, length).in_(in_values))
+                case_conditions.append((or_( *or_conditions), literal(res)))
+            case_expression = case(case_conditions, else_=literal(case_default)).label(case_alias)
+            columns[i] = case_expression
 
     # Build the ORM query
     main_alias = aliased(main_table, name=main_table_alias)
-    query = session.query(*(main_alias.c[column.split(".")[1].strip()] for column in columns if "." in column))
+    query = session.query(*(main_alias.c[column.split(".")[1].strip()] for column in columns if isinstance(column, str)))
+
+    for column in columns:
+        if isinstance(column, case):
+            query = query.add_columns(column)
 
     # Process joins
     current_table = main_alias
@@ -550,15 +563,19 @@ def generate_orm_query_from_sql(sql_string, engine):
 
     return query
 
+
 # Example usage
 engine = create_engine("sqlite:///:memory:")  # Replace with actual DB URL
 sql_string = """
-SELECT a.name, 
-       CASE WHEN b.STATIC_VA IN (1,2,3,4) OR c.TAQ NOT IN (12,23,4,5) OR b.BAL > 0 THEN 1 ELSE 0 END AS bad
+SELECT a.name AS fico,
+       CASE 
+           WHEN SUBSTRING(c.paystr FROM 3 FOR 1) IN ('1', '2', '4') OR 
+                SUBSTRING(c.paystr FROM 4 FOR 1) IN ('3', '6') 
+           THEN 1 
+           ELSE 0 
+       END AS bad
 FROM tableA a
-LEFT JOIN tableB b ON a.id = b.a_id
 LEFT JOIN tableC c ON a.id = c.a_id
-WHERE a.age > 30
 """
 query = generate_orm_query_from_sql(sql_string, engine)
 results = query.all()
