@@ -354,3 +354,29 @@ class QueryManager:
 
         result = query.all()
         return result
+
+    def list_tables(self):
+        """
+        Returns a list of all table names in the database.
+
+        Returns
+        -------
+        list
+            A list of table names.
+        """
+        # Connect to the database
+        connection = self.engine.connect()
+
+        # Query to retrieve table names
+        query = "SELECT TableName FROM DBC.Tables WHERE TableKind = 'T' AND DatabaseName = DATABASE;"
+
+        # Execute the query
+        result = connection.execute(query)
+
+        # Fetch all table names from the result
+        table_names = [row[0] for row in result.fetchall()]
+
+        # Close the database connection
+        connection.close()
+
+        return table_names
