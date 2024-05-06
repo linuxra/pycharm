@@ -426,3 +426,140 @@ def generate_class_from_table_name(table_name, engine):
 # Example usage:
 # engine = create_engine("teradatasqlalchemy://user:password@host/")
 # MyClass = generate_class_from_table_name("my_table", engine)
+
+
+from sqlalchemy import create_engine, MetaData, Table, Column, Integer
+from sqlalchemy.ext.declarative import declarative_base
+
+# Initialize the metadata object
+metadata = MetaData()
+# Define a base class for the models
+Base = declarative_base()
+
+
+def generate_class_from_table_name(table_name, engine, column_names=None):
+    """
+    Generate an SQLAlchemy class based on a given table name.
+
+    Parameters:
+        table_name (str): The name of the table, formatted as "schema.table_name".
+        engine (sqlalchemy.engine.base.Engine): The SQLAlchemy engine.
+        column_names (list, optional): List of column names to include in the reflection.
+
+    Returns:
+        type: The generated SQLAlchemy model class.
+    """
+    # Split the table name into schema and table
+    schema, table = table_name.split(".")
+
+    # Reflect the table from the database
+    if column_names:
+        table = Table(
+            table,
+            metadata,
+            schema=schema,
+            autoload_with=engine,
+            include_columns=column_names,
+        )
+    else:
+        table = Table(table, metadata, schema=schema, autoload_with=engine)
+
+    # Generate the class name based on the table name
+    class_name = table_name.replace(".", "_").capitalize()
+
+    # Check if the table has a primary key
+    if not any(col.primary_key for col in table.columns):
+        # Add an auto-incrementing ID column if no primary key exists
+        table.append_column(Column("id", Integer, primary_key=True, autoincrement=True))
+
+    # Create the class attributes
+    class_attrs = {"__tablename__": table_name, "__table__": table}
+    # Generate the class
+    new_class = type(class_name, (Base,), class_attrs)
+
+    # Log the generated class
+    print(f"Class for table '{table_name}' is {new_class}.")
+    return new_class
+
+
+# Example usage:
+# engine = create_engine("teradatasqlalchemy://user:password@host/")
+# MyClass = generate_class_from_table_name("myschema.my_table", engine, column_names=["name", "dt"])
+
+
+import re
+from sqlalchemy import create_engine, MetaData, Table, case, and_, or_, not_, literal, text
+from sqlalchemy.orm import sessionmaker, aliased
+
+def generate_orm_query_from_sql(sql_string, engine):
+    """
+    Generate an SQLAlchemy ORM query from a SQL string with multiple LEFT JOINs and a complex CASE statement.
+
+    Parameters:
+        sql_string (str): The input SQL query as a string.
+        engine (sqlalchemy.engine.base.Engine): The SQLAlchemy engine.
+
+    Returns:
+        sqlalchemy.orm.query.Query: The generated SQLAlchemy query.
+    """
+    metadata = MetaData(bind=engine)
+    session = sessionmaker(bind=engine)()
+
+    # Extract the SELECT, JOIN, and WHERE components
+    select_match = re.search(r"SELECT\s+(.*?)\s+FROM\s+([a-zA-Z0-9_]+)\s+AS\s+([a-zA-Z])", sql_string, re.IGNORECASE)
+    join_matches = re.findall(r"LEFT JOIN\s+([a-zA-Z0-9_]+)\s+AS\s+([a-zA-Z])\s+ON\s+(.*?)\s", sql_string, re.IGNORECASE)
+    where_match = re.search(r"WHERE\s+(.*)", sql_string, re.IGNORECASE)
+
+    columns = select_match.group(1).split(",")
+    main_table_name = select_match.group(2)
+    main_table_alias = select_match.group(3)
+    main_table = Table(main_table_name, metadata, autoload_with=engine)
+
+    joins = [(Table(tbl, metadata, autoload_with=engine), alias, condition) for tbl, alias, condition in join_matches]
+    conditions = where_match.group(1) if where_match else None
+
+    # Handle complex CASE statements
+    case_conditions = []
+    for col in columns:
+        if "CASE" in col.upper():
+            case_match = re.search(r"CASE\s+(.*?)\s+END\s+AS\s+(\w+)", col, re.IGNORECASE)
+            case_logic, case_alias = case_match.groups()
+            case_parts = re.findall(r"WHEN\s+(.*?)\s+THEN\s+(.*?)\s", case_logic, re.IGNORECASE)
+            case_default = re.search(r"ELSE\s+(.*?)\s", case_logic, re.IGNORECASE).group(1)
+            case_expression = case(
+                [(text(cond), literal(res)) for cond, res in case_parts],
+                else_=literal(case_default)
+            )
+            columns = [case_expression.label(case_alias) if c.strip() == col.strip() else c for c in columns]
+
+    # Build the ORM query
+    main_alias = aliased(main_table, name=main_table_alias)
+    query = session.query(*(main_alias.c[column.split(".")[1].strip()] for column in columns if "." in column))
+
+    # Process joins
+    current_table = main_alias
+    for table, alias, condition in joins:
+        alias_obj = aliased(table, name=alias)
+        join_condition = text(condition)
+        query = query.outerjoin(alias_obj, join_condition)
+        current_table = alias_obj
+
+    # Add filter condition if present
+    if conditions:
+        query = query.filter(text(conditions))
+
+    return query
+
+# Example usage
+engine = create_engine("sqlite:///:memory:")  # Replace with actual DB URL
+sql_string = """
+SELECT a.name, 
+       CASE WHEN b.STATIC_VA IN (1,2,3,4) OR c.TAQ NOT IN (12,23,4,5) OR b.BAL > 0 THEN 1 ELSE 0 END AS bad
+FROM tableA a
+LEFT JOIN tableB b ON a.id = b.a_id
+LEFT JOIN tableC c ON a.id = c.a_id
+WHERE a.age > 30
+"""
+query = generate_orm_query_from_sql(sql_string, engine)
+results = query.all()
+print(results)
