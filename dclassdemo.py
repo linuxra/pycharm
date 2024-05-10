@@ -13,6 +13,36 @@ class Settings(metaclass=ImmutableType):
     COLUMN_COLORS = ["#f2f2f2", "white"]
     CAT_COLORS = ["#f2f2f2", "white"]
 
+import inspect
+
+class MemoSettings:
+    BG_COLOR = 'blue'
+    MAX_SIZE = 1024
+
+    def __init__(self):
+        # Initialize variables in the caller's local scope
+        self.inject_into_caller()
+
+    def inject_into_caller(self):
+        """Injects snake_case attributes into the caller's local scope based on class constants."""
+        caller_frame = inspect.currentframe().f_back
+        for attr_name in dir(self):
+            if attr_name.isupper() and not attr_name.startswith('__'):
+                attr_value = getattr(self, attr_name)
+                caller_frame.f_locals[self.to_snake_case(attr_name)] = attr_value
+
+    @staticmethod
+    def to_snake_case(name):
+        """Converts a given uppercase string to snake_case."""
+        import re
+        return re.sub(r'(?<!^)(?=[A-Z])', '_', name).lower()
+
+# Usage in your script or Jupyter notebook cell
+settings = MemoSettings()
+
+# Now, bg_color and max_size are directly accessible without the settings prefix.
+print(bg_color)  # Output: blue
+print(max_size)  # Output: 1024
 
 print(Settings.BCOLOR)
 
