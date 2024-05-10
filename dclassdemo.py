@@ -1,4 +1,27 @@
+import sys
+
+
 class ImmutableType(type):
+    """
+    A metaclass that makes attributes of the class immutable once they are set and
+    injects these attributes into the global namespace of the module as lowercase variables.
+    Attempts to modify existing class attributes will result in an AttributeError.
+
+    This metaclass also includes a __new__ method for initializing the class and automatically
+    setting class attributes as global variables in lowercase form.
+    """
+
+    def __new__(cls, name, bases, dct):
+        # Create the class normally
+        new_class = super().__new__(cls, name, bases, dct)
+        # Inject class attributes into the global namespace of the module where the class is defined
+        module = sys.modules[new_class.__module__]
+        for attr_name in dct:
+            if not attr_name.startswith("__"):
+                # Set the attribute in the global namespace of the module as lowercase
+                setattr(module, attr_name.lower(), dct[attr_name])
+        return new_class
+
     def __setattr__(cls, key, value):
         if key in cls.__dict__:
             raise AttributeError(f"{key} is immutable")
@@ -6,36 +29,30 @@ class ImmutableType(type):
 
 
 class Settings(metaclass=ImmutableType):
-    BCOLOR = "black"
-    HEADER_FACE_COLOR = "white"
-    HEADER_TEXT_COLOR = "black"
-    HEADER_FONT_SIZE = 16
-    COLUMN_COLORS = ["#f2f2f2", "white"]
-    CAT_COLORS = ["#f2f2f2", "white"]
+    """
+    A settings class where attributes are defined as constants and cannot be modified
+    once the class is created. This class is useful for defining application settings
+    that should not change during the application's lifetime.
 
-import inspect
+    Attributes:
+        BCOLOR (str): Background color, default is 'black'.
+        HEADER_FACE_COLOR (str): Face color for headers, default is 'white'.
+        HEADER_TEXT_COLOR (str): Text color for headers, default is 'black'.
+        HEADER_FONT_SIZE (int): Font size for headers, default is 16.
+        COLUMN_COLORS (list): Default colors for columns, list contains shades of gray and white.
+        CAT_COLORS (list): Default category colors, list contains shades of gray and white.
+    """
 
-class MemoSettings:
-    BG_COLOR = 'blue'
-    MAX_SIZE = 1024
 
-    def __init__(self):
-        # Initialize variables in the caller's local scope
-        self.inject_into_caller()
+# Accessing the global variables directly
+print(bcolor)  # Output: black
+print(header_face_color)  # Output: white
 
-    def inject_into_caller(self):
-        """Injects snake_case attributes into the caller's local scope based on class constants."""
-        caller_frame = inspect.currentframe().f_back
-        for attr_name in dir(self):
-            if attr_name.isupper() and not attr_name.startswith('__'):
-                attr_value = getattr(self, attr_name)
-                caller_frame.f_locals[self.to_snake_case(attr_name)] = attr_value
-
-    @staticmethod
-    def to_snake_case(name):
-        """Converts a given uppercase string to snake_case."""
-        import re
-        return re.sub(r'(?<!^)(?=[A-Z])', '_', name).lower()
+# Example of trying to modify an immutable attribute
+try:
+    Settings.BCOLOR = "red"
+except AttributeError as e:
+    print(e)  # Output: BCOLOR is immutable
 
 # Usage in your script or Jupyter notebook cell
 settings = MemoSettings()
