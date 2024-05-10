@@ -6,9 +6,6 @@ class ImmutableType(type):
     A metaclass that makes attributes of the class immutable once they are set and
     injects these attributes into the global namespace of the module as lowercase variables.
     Attempts to modify existing class attributes will result in an AttributeError.
-
-    This metaclass also includes a __new__ method for initializing the class and automatically
-    setting class attributes as global variables in lowercase form.
     """
 
     def __new__(cls, name, bases, dct):
@@ -16,10 +13,12 @@ class ImmutableType(type):
         new_class = super().__new__(cls, name, bases, dct)
         # Inject class attributes into the global namespace of the module where the class is defined
         module = sys.modules[new_class.__module__]
-        for attr_name in dct:
+        print(f"Injecting into module: {new_class.__module__}")
+        for attr_name, attr_value in dct.items():
             if not attr_name.startswith("__"):
-                # Set the attribute in the global namespace of the module as lowercase
-                setattr(module, attr_name.lower(), dct[attr_name])
+                lower_name = attr_name
+                setattr(module, lower_name, attr_value)
+                print(f"Injected {lower_name} with value {attr_value}")
         return new_class
 
     def __setattr__(cls, key, value):
@@ -29,24 +28,12 @@ class ImmutableType(type):
 
 
 class Settings(metaclass=ImmutableType):
-    """
-    A settings class where attributes are defined as constants and cannot be modified
-    once the class is created. This class is useful for defining application settings
-    that should not change during the application's lifetime.
-
-    Attributes:
-        BCOLOR (str): Background color, default is 'black'.
-        HEADER_FACE_COLOR (str): Face color for headers, default is 'white'.
-        HEADER_TEXT_COLOR (str): Text color for headers, default is 'black'.
-        HEADER_FONT_SIZE (int): Font size for headers, default is 16.
-        COLUMN_COLORS (list): Default colors for columns, list contains shades of gray and white.
-        CAT_COLORS (list): Default category colors, list contains shades of gray and white.
-    """
-
-
-# Accessing the global variables directly
-print(bcolor)  # Output: black
-print(header_face_color)  # Output: white
+    BCOLOR = "black"
+    HEADER_FACE_COLOR = "white"
+    HEADER_TEXT_COLOR = "black"
+    HEADER_FONT_SIZE = 16
+    COLUMN_COLORS = ["#f2f2f2", "white"]
+    CAT_COLORS = ["#f2f2f2", "white"]
 
 # Example of trying to modify an immutable attribute
 try:
