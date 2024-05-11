@@ -35,6 +35,7 @@ class Settings(metaclass=ImmutableType):
     COLUMN_COLORS = ["#f2f2f2", "white"]
     CAT_COLORS = ["#f2f2f2", "white"]
 
+
 # Example of trying to modify an immutable attribute
 try:
     Settings.BCOLOR = "red"
