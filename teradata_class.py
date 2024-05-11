@@ -2,6 +2,7 @@ import teradatasql
 import pandas as pd
 import logging
 
+
 class TeradataConnection:
     """
     Context manager for managing Teradata database connections with extended functionality for executing queries and logging.
@@ -34,7 +35,7 @@ class TeradataConnection:
                 host=self.host,
                 user=self.username,
                 password=self.password,
-                database=self.database
+                database=self.database,
             )
             self.logger.info("Database connection established.")
             return self
@@ -56,7 +57,9 @@ class TeradataConnection:
         """
         try:
             df = pd.read_sql(sql, self.connection)
-            self.logger.info(f"Query executed successfully. Returned {len(df)} records.")
+            self.logger.info(
+                f"Query executed successfully. Returned {len(df)} records."
+            )
             return df
         except Exception as e:
             self.logger.error("Failed to execute query: %s", str(e))
@@ -70,8 +73,12 @@ class TeradataConnection:
             cursor = self.connection.cursor()
             cursor.execute(sql)
             if create_df:
-                df = pd.DataFrame(cursor.fetchall(), columns=[col[0] for col in cursor.description])
-                self.logger.info(f"Query executed successfully. Returned {len(df)} records as DataFrame.")
+                df = pd.DataFrame(
+                    cursor.fetchall(), columns=[col[0] for col in cursor.description]
+                )
+                self.logger.info(
+                    f"Query executed successfully. Returned {len(df)} records as DataFrame."
+                )
                 return df
             else:
                 self.logger.info("Query executed successfully. Returning cursor.")
@@ -91,3 +98,29 @@ class TeradataConnection:
         except Exception as e:
             self.logger.error("Failed to obtain cursor: %s", str(e))
             raise
+
+    def execute_query1(self, sql, as_dataframe=True):
+        """
+        Execute a SQL query and optionally return results as a pandas DataFrame.
+
+        Args:
+            sql (str): The SQL query to execute.
+            as_dataframe (bool): If True (default), returns a DataFrame.
+                                 If False, returns the cursor object for direct iteration.
+
+        Returns:
+            pd.DataFrame or teradatasql.Cursor: The query result or the cursor.
+        """
+        with self.connection.cursor() as cursor:
+            try:
+                cursor.execute(sql)
+                if as_dataframe:
+                    df = pd.DataFrame(cursor.fetchall(), columns=[col[0] for col in cursor.description])
+                    self.logger.info(f"Query executed successfully. Returned {len(df)} rows.")
+                    return df
+                else:
+                    self.logger.info("Query executed successfully. Returning cursor.")
+                    return cursor
+            except teradatasql.Error as e:
+                self.logger.error(f"Failed to execute query: {e}")
+                raise
