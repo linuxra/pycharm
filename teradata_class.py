@@ -115,8 +115,13 @@ class TeradataConnection:
             try:
                 cursor.execute(sql)
                 if as_dataframe:
-                    df = pd.DataFrame(cursor.fetchall(), columns=[col[0] for col in cursor.description])
-                    self.logger.info(f"Query executed successfully. Returned {len(df)} rows.")
+                    df = pd.DataFrame(
+                        cursor.fetchall(),
+                        columns=[col[0] for col in cursor.description],
+                    )
+                    self.logger.info(
+                        f"Query executed successfully. Returned {len(df)} rows."
+                    )
                     return df
                 else:
                     self.logger.info("Query executed successfully. Returning cursor.")
@@ -124,3 +129,82 @@ class TeradataConnection:
             except teradatasql.Error as e:
                 self.logger.error(f"Failed to execute query: {e}")
                 raise
+
+    def execute_query2(self, sql, as_dataframe=True, batch_size=1000):
+        """
+        Execute a SQL query and optionally return results as a pandas DataFrame in batches.
+
+        Args:
+            sql (str): The SQL query to execute.
+            as_dataframe (bool): If True (default), yields DataFrames in batches.
+                                 If False, yields the cursor object for direct iteration.
+            batch_size (int): The number of rows to fetch per batch (default: 1000).
+
+        Yields:
+            pd.DataFrame or teradatasql.Cursor: The query result in batches or the cursor.
+        """
+        with self.connection.cursor() as cursor:
+            try:
+                cursor.execute(sql)
+                while True:
+                    rows = cursor.fetchmany(batch_size)
+                    if not rows:
+                        break  # No more rows to fetch
+                    if as_dataframe:
+                        yield pd.DataFrame(
+                            rows, columns=[col[0] for col in cursor.description]
+                        )
+                    else:
+                        yield rows
+                self.logger.info("Query executed successfully.")
+            except teradatasql.Error as e:
+                self.logger.error(f"Failed to execute query: {e}")
+                raise
+
+    import pandas as pd
+    import teradatasql
+
+    def execute_query3(self, sql, as_dataframe=True, batch_size=1000):
+        """
+        Execute a SQL query and optionally return results as a pandas DataFrame in batches.
+        This method leverages the power of Python's generators to manage large datasets efficiently.
+
+        Args:
+            sql (str): The SQL query to execute.
+            as_dataframe (bool): If True (default), yields DataFrames in batches.
+                                 If False, yields the cursor object for direct iteration.
+            batch_size (int): The number of rows to fetch per batch (default: 1000).
+
+        Yields:
+            pd.DataFrame or list: If `as_dataframe` is True, yields a DataFrame for each batch.
+                                  If `as_dataframe` is False, yields lists of tuples representing rows.
+
+        Raises:
+            RuntimeError: If there is no active database connection.
+            Exception: Propagates any database-specific errors that occur during query execution.
+        """
+        if not self.connection:
+            self.logger.error("Attempted to execute a query without an active database connection.")
+            raise RuntimeError("No active database connection.")
+
+        try:
+            with self.connection.cursor() as cursor:
+                self.logger.info(f"Executing SQL query: {sql}")
+                cursor.execute(sql)
+                while True:
+                    rows = cursor.fetchmany(batch_size)
+                    if not rows:
+                        self.logger.info("No more rows to fetch.")
+                        break  # No more rows to fetch
+                    if as_dataframe:
+                        df = pd.DataFrame(rows, columns=[col[0] for col in cursor.description])
+                        self.logger.info(f"Yielding a DataFrame with {len(df)} rows.")
+                        yield df
+                    else:
+                        self.logger.info(f"Yielding raw data rows.")
+                        yield rows
+        except teradatasql.Error as e:
+            self.logger.error(f"Failed to execute query: {e}")
+            raise
+        finally:
+            self.logger.info("Query execution completed.")
