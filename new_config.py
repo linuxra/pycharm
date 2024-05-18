@@ -156,7 +156,7 @@ class Config:
         if metadata_type.lower() == "psi":
             filename = f"psi_{self.bus_area}_baseline.csv"
         elif metadata_type.lower() == "mer" and self.perf is not None:
-            filename = f"mer_{self.bus_area}_perf_baseline.csv"
+            filename = f"mer_{self.bus_area}_{self.perf}_baseline.csv"
         else:
             return None
         return self.metadata_dir / filename
