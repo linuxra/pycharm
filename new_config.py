@@ -2,28 +2,68 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-MODEL_ID = "mdl_102"  # This is the constant model ID
+# Constant model ID
+MODEL_ID = "mdl_102"
 
 
 @dataclass
 class Config:
+    """
+    Configuration class for generating file paths and names based on business area, date, and optional performance window.
+
+    Attributes:
+        bus_area (str): Business area.
+        yyyymm (str): Year and month in YYYYMM format.
+        perf (Optional[int]): Optional performance window (e.g., 6, 9, 12, 18, 24).
+    """
+
     bus_area: str
     yyyymm: str
     perf: Optional[int] = None
 
-    def __post_init__(self):
-        if self.perf is not None:
-            self.base_dir = Path(
-                f"/users/modeling/{MODEL_ID}/malts/model_id/perf_{self.perf}"
-            )
-        else:
-            self.base_dir = Path(f"/users/modeling/{MODEL_ID}/malts/model_id")
+    base_dir: Path = field(init=False)
+    data_dir: Path = field(init=False)
+    output_dir: Path = field(init=False)
+    metadata_dir: Path = field(init=False)
+    common_dir: Path = field(init=False)
+    notebooks_dir: Path = field(init=False)
+    utils_dir: Path = field(init=False)
+    temp_dir: Path = field(init=False)
+    dump_dir: Path = field(init=False)
+    archive_dir: Path = field(init=False)
+    logs_dir: Path = field(init=False)
 
+    scr_file_name: Path = field(init=False)
+    perf_file_name: Optional[Path] = field(init=False, default=None)
+    mad_file_name: Optional[Path] = field(init=False, default=None)
+    sd_file_name: Optional[Path] = field(init=False, default=None)
+    rev_file_name: Optional[Path] = field(init=False, default=None)
+    rev_parquet_file_name: Optional[Path] = field(init=False, default=None)
+    psi_file_name: Path = field(init=False)
+    psi_metadata_file: Path = field(init=False)
+    mer_metadata_file: Optional[Path] = field(init=False, default=None)
+    log_file_name: Path = field(init=False)
+
+    def __post_init__(self):
+        """
+        Post-initialization to set up directories and generate file names.
+        """
+        # Set base directory
+        self.base_dir = Path(f"/users/modeling/{MODEL_ID}/malts/model_id")
+
+        # Define directories
         self.data_dir = self.base_dir / "data"
         self.output_dir = self.base_dir / "output"
         self.metadata_dir = self.base_dir / "metadata"
+        self.common_dir = self.base_dir / "common"
+        self.notebooks_dir = self.base_dir / "notebooks"
+        self.utils_dir = self.base_dir / "utils"
+        self.temp_dir = self.base_dir / "temp"
+        self.dump_dir = self.base_dir / "dump"
+        self.archive_dir = self.base_dir / "archive"
+        self.logs_dir = self.base_dir / "logs"
 
-        # Generate filenames upon initialization
+        # Generate filenames
         self.scr_file_name = self._generate_scr_filename()
         self.psi_file_name = self._generate_output_filename("psi", always=True)
         self.psi_metadata_file = self._generate_metadata_filename("psi")
@@ -33,23 +73,61 @@ class Config:
             self.mad_file_name = self._generate_output_filename("mad")
             self.sd_file_name = self._generate_output_filename("sd")
             self.rev_file_name = self._generate_output_filename("rev")
+            self.rev_parquet_file_name = self._generate_rev_parquet_filename()
             self.mer_metadata_file = self._generate_metadata_filename("mer")
         else:
             self.perf_file_name = None
             self.mad_file_name = None
             self.sd_file_name = None
             self.rev_file_name = None
+            self.rev_parquet_file_name = None
             self.mer_metadata_file = None
 
-    def _generate_scr_filename(self):
+        self.log_file_name = self._generate_log_filename()
+
+    def _generate_scr_filename(self) -> Path:
+        """
+        Generate the filename for the scr file.
+
+        Returns:
+            Path: Full path to the scr file.
+        """
         filename = f"{MODEL_ID}_{self.bus_area}_scr_{self.yyyymm}.parquet"
         return self.data_dir / filename
 
-    def _generate_perf_filename(self):
+    def _generate_perf_filename(self) -> Path:
+        """
+        Generate the filename for the perf file.
+
+        Returns:
+            Path: Full path to the perf file.
+        """
         filename = f"{MODEL_ID}_{self.bus_area}_perf_{self.perf}_{self.yyyymm}.parquet"
         return self.data_dir / filename
 
-    def _generate_output_filename(self, summary_type: str, always: bool = False):
+    def _generate_rev_parquet_filename(self) -> Path:
+        """
+        Generate the filename for the rev file with parquet extension.
+
+        Returns:
+            Path: Full path to the rev parquet file.
+        """
+        filename = f"{MODEL_ID}_{self.bus_area}_rev_{self.perf}_{self.yyyymm}.parquet"
+        return self.data_dir / filename
+
+    def _generate_output_filename(
+        self, summary_type: str, always: bool = False
+    ) -> Optional[Path]:
+        """
+        Generate the filename for the summary files (mad, sd, rev, psi).
+
+        Args:
+            summary_type (str): Type of summary file (mad, sd, rev, psi).
+            always (bool): Flag to always generate the file (used for psi).
+
+        Returns:
+            Optional[Path]: Full path to the summary file or None if conditions are not met.
+        """
         valid_types = ["mad", "sd", "rev", "psi"]
         if summary_type.lower() in valid_types:
             if always or self.perf is not None:
@@ -65,7 +143,16 @@ class Config:
                 f"Invalid summary type. Must be one of: {', '.join(valid_types)}"
             )
 
-    def _generate_metadata_filename(self, metadata_type: str):
+    def _generate_metadata_filename(self, metadata_type: str) -> Optional[Path]:
+        """
+        Generate the filename for the metadata files (psi, mer).
+
+        Args:
+            metadata_type (str): Type of metadata file (psi, mer).
+
+        Returns:
+            Optional[Path]: Full path to the metadata file or None if conditions are not met.
+        """
         if metadata_type.lower() == "psi":
             filename = f"psi_{self.bus_area}_baseline.csv"
         elif metadata_type.lower() == "mer" and self.perf is not None:
@@ -74,24 +161,82 @@ class Config:
             return None
         return self.metadata_dir / filename
 
+    def _generate_log_filename(self) -> Path:
+        """
+        Generate the filename for the log file.
+
+        Returns:
+            Path: Full path to the log file.
+        """
+        if self.perf is not None:
+            filename = f"{MODEL_ID}_{self.bus_area}_{self._determine_file_type()}_{self.perf}_{self.yyyymm}.log"
+        else:
+            filename = f"{MODEL_ID}_{self.bus_area}_{self._determine_file_type()}_{self.yyyymm}.log"
+        return self.logs_dir / filename
+
+    def _determine_file_type(self) -> str:
+        """
+        Determine the file type based on the presence of various files.
+
+        Returns:
+            str: The file type.
+        """
+        if self.perf_file_name:
+            return "perf"
+        elif self.mad_file_name:
+            return "mad"
+        elif self.sd_file_name:
+            return "sd"
+        elif self.rev_file_name or self.rev_parquet_file_name:
+            return "rev"
+        elif self.psi_file_name:
+            return "psi"
+        else:
+            return "scr"
+
+    def __repr__(self) -> str:
+        """
+        String representation of the Config class, printing each file path line by line.
+
+        Returns:
+            str: Multiline string representation of the class.
+        """
+        attrs = [
+            "bus_area",
+            "yyyymm",
+            "perf",
+            "base_dir",
+            "data_dir",
+            "output_dir",
+            "metadata_dir",
+            "common_dir",
+            "notebooks_dir",
+            "utils_dir",
+            "temp_dir",
+            "dump_dir",
+            "archive_dir",
+            "logs_dir",
+            "scr_file_name",
+            "perf_file_name",
+            "mad_file_name",
+            "sd_file_name",
+            "rev_file_name",
+            "rev_parquet_file_name",
+            "psi_file_name",
+            "psi_metadata_file",
+            "mer_metadata_file",
+            "log_file_name",
+        ]
+        return "Config:\n" + "\n".join(
+            f"  {attr}: {getattr(self, attr)}"
+            for attr in attrs
+            if getattr(self, attr) is not None
+        )
+
 
 # Example usage
 c1 = Config("finance", "201312", 6)
-print(c1.scr_file_name)  # For scr file
-print(c1.perf_file_name)  # For perf file
-print(c1.mad_file_name)  # For MAD summary file
-print(c1.sd_file_name)  # For SD summary file
-print(c1.rev_file_name)  # For REV summary file
-print(c1.psi_file_name)  # For PSI summary file
-print(c1.psi_metadata_file)  # For PSI metadata file
-print(c1.mer_metadata_file)  # For MER metadata file
+print(c1)
 
 c2 = Config("finance", "201312")
-print(c2.scr_file_name)  # For scr file
-print(c2.perf_file_name)  # None, as perf is not specified
-print(c2.mad_file_name)  # None, as perf is not specified
-print(c2.sd_file_name)  # None, as perf is not specified
-print(c2.rev_file_name)  # None, as perf is not specified
-print(c2.psi_file_name)  # For PSI summary file
-print(c2.psi_metadata_file)  # For PSI metadata file
-print(c2.mer_metadata_file)  # None, as perf is not specified
+print(c2)
