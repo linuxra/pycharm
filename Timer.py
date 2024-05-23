@@ -90,3 +90,46 @@ class Timer:
         # Can optionally handle exceptions here or log details
         # Return False to propagate exceptions, True to suppress them
         return False
+
+
+def display_macro(file_path, styles1, COLUMN_COLOR, COL_TXT_COLOR):
+    """
+    Displays a macro from a specified file, applying DataFrame styling and uniform color customization
+    to column backgrounds and text to enhance visual presentation. The macro data is assumed to be stored
+    in a format readable by pandas, such as CSV or Excel. The method reads the file, applies the provided
+    DataFrame styles, and sets specified colors for all column backgrounds and text.
+
+    Parameters:
+        file_path (str): The path to the file containing the macro data. This should be a path to a
+                         readable file format by pandas, such as '.csv' or '.xlsx'.
+        styles1 (pandas.io.formats.style.Styler): A pandas Styler object containing styles to be
+                                                  applied to the DataFrame. This object configures
+                                                  how the DataFrame should be displayed, such as
+                                                  background color, text alignment, and other
+                                                  visual styles.
+        COLUMN_COLOR (str): A color string (e.g., 'yellow', 'red') used to set the background color
+                            for all columns in the DataFrame.
+        COL_TXT_COLOR (str): A color string (e.g., 'black', 'white') used to set the text color for
+                             all columns in the DataFrame.
+
+    Returns:
+        None. The method is used for its side effect of displaying a styled DataFrame within
+        a Jupyter Notebook or similar environment.
+
+    Example:
+        # Assuming 'data.csv' contains columns that need to be styled
+        file_path = 'data.csv'
+        styles1 = df.style.applymap(lambda x: 'background-color: lightgrey')
+        COLUMN_COLOR = 'yellow'
+        COL_TXT_COLOR = 'black'
+        display_macro(file_path, styles1, COLUMN_COLOR, COL_TXT_COLOR)
+    """
+    import pandas as pd
+    df = pd.read_csv(file_path)
+    styled_df = df.style.apply(styles1)  # Apply general styles
+    # Apply uniform column and text colors
+    styled_df = styled_df.set_table_styles(
+        [{'selector': 'th, td',
+          'props': [('background-color', COLUMN_COLOR), ('color', COL_TXT_COLOR)]}]
+    )
+    display(styled_df)  # display is typically from IPython.display or similar
