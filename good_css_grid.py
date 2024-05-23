@@ -73,3 +73,99 @@ html = """
 """
 
 display(HTML(html))
+
+
+import pandas as pd
+
+# Create a dummy DataFrame
+data = {
+    'Column1': range(1, 9),
+    'Column2': range(10, 18),
+    'Column3': range(20, 28),
+    'Column4': range(30, 38),
+    'Column5': range(40, 48),
+}
+df = pd.DataFrame(data)
+
+# Convert the DataFrame to HTML
+html = df.to_html(index=False)
+
+# Insert CSS styles directly into the HTML for demonstration purposes
+css = """
+<style>
+    body {
+        font-family: 'Arial', sans-serif; /* Set a clean, readable font */
+    }
+    .grid-container {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr); /* Define 5 columns */
+        gap: 10px; /* Space between cells */
+        padding: 10px; /* Padding around the grid */
+        margin: 20px; /* Margin around the grid container */
+    }
+    .grid-item {
+        background-color: #f8f9fa; /* Very light grey background for grid items */
+        border: 1px solid #dee2e6; /* Border for grid items */
+        padding: 8px; /* Padding inside grid items */
+        text-align: center; /* Center text inside grid items */
+        transition: background-color 0.3s; /* Smooth transition for hover effect */
+    }
+    .grid-item:hover {
+        background-color: #e9ecef; /* Change background on hover */
+    }
+    .title-row {
+        grid-column: 1 / -1; /* Span across all columns */
+        background-color: #007bff; /* Bootstrap primary blue */
+        color: white; /* White text */
+        text-align: center;
+        padding: 15px;
+        font-size: 24px; /* Larger font size for title */
+        font-weight: bold; /* Bold font weight for title */
+    }
+    .header-item {
+        background-color: #6c757d; /* Bootstrap secondary gray */
+        color: white; /* White text */
+        font-weight: bold; /* Bold font weight for headers */
+        font-size: 16px; /* Larger font size for headers */
+    }
+</style>
+"""
+
+# Transform the DataFrame HTML to use divs and CSS Grid
+from bs4 import BeautifulSoup
+
+soup = BeautifulSoup(html, 'html.parser')
+table = soup.find('table')
+rows = table.find_all('tr')
+
+# Create a new div that will act as our grid container
+grid_container = soup.new_tag('div', **{'class': 'grid-container'})
+
+# Insert a title row
+title_div = soup.new_tag('div', **{'class': 'title-row'})
+title_div.string = "My DataFrame Title"
+grid_container.append(title_div)
+
+# Process header row
+for th in rows[0].find_all('th'):
+    header_cell = soup.new_tag('div', **{'class': 'grid-item header-item'})
+    header_cell.string = th.get_text()
+    grid_container.append(header_cell)
+
+# Process each data row
+for row in rows[1:]:  # Skip the header row
+    for td in row.find_all('td'):
+        data_cell = soup.new_tag('div', **{'class': 'grid-item'})
+        data_cell.string = td.get_text()
+        grid_container.append(data_cell)
+
+# Replace the table with our new grid container
+table.replace_with(grid_container)
+
+# Combine everything into a complete HTML document
+html_output = f"<html><head>{css}</head><body>{str(soup)}</body></html>"
+
+
+# Display the HTML in a Jupyter Notebook or write it to an HTML file
+display(HTML(html_output))
+

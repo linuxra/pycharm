@@ -125,11 +125,16 @@ def display_macro(file_path, styles1, COLUMN_COLOR, COL_TXT_COLOR):
         display_macro(file_path, styles1, COLUMN_COLOR, COL_TXT_COLOR)
     """
     import pandas as pd
+
     df = pd.read_csv(file_path)
     styled_df = df.style.apply(styles1)  # Apply general styles
     # Apply uniform column and text colors
     styled_df = styled_df.set_table_styles(
-        [{'selector': 'th, td',
-          'props': [('background-color', COLUMN_COLOR), ('color', COL_TXT_COLOR)]}]
+        [
+            {
+                "selector": "th, td",
+                "props": [("background-color", COLUMN_COLOR), ("color", COL_TXT_COLOR)],
+            }
+        ]
     )
     display(styled_df)  # display is typically from IPython.display or similar
