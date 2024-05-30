@@ -166,3 +166,10 @@ column_names = ["A", "B", "C", "D", "E"]
 
 # Create and display the grid
 create_css_grid(4, 5, [(2, 2, 2, 1)], grid_data, title, column_names)
+
+%%javascript
+var styleSheets = document.styleSheets;
+for (var i = 0; i < styleSheets.length; i++) {
+    styleSheets[i].disabled = true;  // Disable all stylesheets
+}
+
