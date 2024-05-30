@@ -1,16 +1,22 @@
 # Define the styles for the DataFrame
 styles = [
-    {'selector': 'th', 'props': [
-        ('background-color', '#f2f2f2'),
-        ('padding', '10px 20px'),
-        ('font-weight', 'bold'),  # Make header text bold
-        ('border-bottom', '1px solid black')  # Ensure solid black border
-    ]},
-    {'selector': 'td', 'props': [
-        ('padding', '10px 20px'),
-        ('border-bottom', '1px solid black'),
-        ('font-weight', 'normal')  # Make cell text normal weight
-    ]}
+    {
+        "selector": "th",
+        "props": [
+            ("background-color", "#f2f2f2"),
+            ("padding", "10px 20px"),
+            ("font-weight", "bold"),  # Make header text bold
+            ("border-bottom", "1px solid black"),  # Ensure solid black border
+        ],
+    },
+    {
+        "selector": "td",
+        "props": [
+            ("padding", "10px 20px"),
+            ("border-bottom", "1px solid black"),
+            ("font-weight", "normal"),  # Make cell text normal weight
+        ],
+    },
 ]
 
 # Apply styles to the DataFrame
@@ -78,8 +84,9 @@ html = styled_df.to_html()
 html_with_container = f'<div class="dataframe-container">{html}</div>'
 
 # Wrap both title and DataFrame in a flex container
-flex_container_html = f'<div class="flex-container">{title_html}{html_with_container}</div>'
+flex_container_html = (
+    f'<div class="flex-container">{title_html}{html_with_container}</div>'
+)
 
 # Display the flex container with custom CSS
 display(HTML(custom_css + flex_container_html))
-
