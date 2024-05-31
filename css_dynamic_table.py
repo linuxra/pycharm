@@ -166,10 +166,96 @@ column_names = ["A", "B", "C", "D", "E"]
 
 # Create and display the grid
 create_css_grid(4, 5, [(2, 2, 2, 1)], grid_data, title, column_names)
+#
+# %%javascript
+# var styleSheets = document.styleSheets;
+# for (var i = 0; i < styleSheets.length; i++) {
+#     styleSheets[i].disabled = true;  // Disable all stylesheets
+# }
+from IPython.display import HTML, display
+import pandas as pd
+from bs4 import BeautifulSoup
 
-%%javascript
-var styleSheets = document.styleSheets;
-for (var i = 0; i < styleSheets.length; i++) {
-    styleSheets[i].disabled = true;  // Disable all stylesheets
-}
+def sanitize_html(content):
+    """
+    Sanitize HTML content using BeautifulSoup to ensure it's safe to display.
+    Args:
+        content (str): HTML content to sanitize.
+    Returns:
+        str: Sanitized HTML content.
+    """
+    soup = BeautifulSoup(content, "html.parser")
+    return str(soup)
 
+def create_css_grid(rows, columns, data, title, headers, color_columns=[], merges=None):
+    """
+    Create and display a CSS grid in a Jupyter notebook with specified data, hierarchical headers, title, and optional merges.
+    Args:
+        rows (int): Number of rows in the grid.
+        columns (int): Number of columns in the grid.
+        data (pd.DataFrame): Data to display in the grid.
+        title (str): Title of the grid.
+        headers (list of lists): Hierarchical list of headers, each sublist represents a header row.
+        color_columns (list of int): Columns indices to apply special coloring.
+        merges (list of tuples, optional): Each tuple specifies (row, column, row_span, col_span) for merged cells.
+    """
+    header_rows = len(headers)  # Count of header rows
+    merges = merges if merges else []
+
+    # Prepare HTML for grid items
+    grid_items = [f'<div style="grid-column: 1 / span {columns}; font-size: 20px; font-weight: bold; color: #ffffff; background-color: #333366; text-align: center; padding: 10px;">{sanitize_html(title)}</div>']  # Title row
+    current_row = 2  # Start from the second row (after the title)
+
+    # Create headers
+    for header_row in headers:
+        for header in header_row:
+            header_text, start_col, span = header
+            grid_items.append(f'<div style="grid-row: {current_row}; grid-column: {start_col} / span {span}; font-weight: bold; color: #ffffff; background-color: #555599; text-align: center; padding: 10px;">{sanitize_html(header_text)}</div>')
+        current_row += 1
+
+    # Handle data cells and merges
+    data_start_row = current_row  # Data starts after all headers
+    for index, row in data.iterrows():
+        r = index + data_start_row
+        for c in range(1, columns + 1):
+            cell_id = (r, c)
+            background_color = "#b6d7a8" if c in color_columns else "#ffffff"
+            if any(cell_id == (merge[0] + data_start_row - 1, merge[1]) for merge in merges):
+                # Find the merge parameters
+                for merge in merges:
+                    if cell_id == (merge[0] + data_start_row - 1, merge[1]):
+                        r_span, c_span = merge[2], merge[3]
+                        grid_items.append(f'<div style="grid-row: {r} / span {r_span}; grid-column: {c} / span {c_span}; background-color: {background_color}; text-align: center; padding: 10px;">{sanitize_html(str(row.iloc[c - 1]))}</div>')
+                        break
+            elif not any((merge[0] + data_start_row - 1 <= r < merge[0] + data_start_row - 1 + merge[2]) and (merge[1] <= c < merge[1] + merge[3]) for merge in merges):
+                grid_items.append(f'<div style="grid-row: {r}; grid-column: {c}; background-color: {background_color}; text-align: center; padding: 10px;">{sanitize_html(str(row.iloc[c - 1]))}</div>')
+
+    # Combine all into HTML with grid style defined
+    html = f'<div style="display: grid; grid-template-columns: repeat({columns}, 1fr); grid-gap: 1px; background-color: #e0e0e0;">{"".join(grid_items)}</div>'
+
+    # Display the grid in the Jupyter notebook
+    display(HTML(html))
+
+# Example DataFrame
+df = pd.DataFrame({
+    "Category": ["A", "B", "C", "D"],
+    "PSI": [1, 6, 11, 16],
+    "SD": [2, 7, 12, 17],
+    "MER": [3, 8, 13, 18]
+})
+
+# Title and Headers
+title = "Enhanced CSS Grid"
+headers = [
+    [("QTR", 1, 4)],  # First row of headers spanning all four columns
+    [("Category", 1, 1), ("PSI", 2, 1), ("SD", 3, 1), ("MER", 4, 1)]  # Second row of headers each spanning one column
+]
+
+# Merges specification (optional)
+merges = [(1, 2, 2, 2)]  # Example of merging, optional
+
+# Columns to color differently
+color_columns = [1,]  # Color the first column differently for emphasis
+
+# Create and display the grid
+create_css_grid(4, 4, df, title, headers, color_columns, merges)
