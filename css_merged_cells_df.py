@@ -2,6 +2,7 @@ from IPython.display import HTML, display, Javascript
 import pandas as pd
 from bs4 import BeautifulSoup
 
+
 def sanitize_html(content):
     """
     Sanitize HTML content using BeautifulSoup to ensure it's safe to display.
@@ -9,7 +10,10 @@ def sanitize_html(content):
     soup = BeautifulSoup(content, "html.parser")
     return str(soup)
 
-def display_css_grid(rows, columns, data, title, headers, color_columns=[], merges=None):
+
+def display_css_grid(
+    rows, columns, data, title, headers, color_columns=[], merges=None
+):
     """
     Display a CSS grid with center-aligned text in merged cells.
     """
@@ -37,7 +41,9 @@ def display_css_grid(rows, columns, data, title, headers, color_columns=[], merg
             cell_id = (r, c)
             extra_class = "color-column" if c in color_columns else "grid-item"
             content = sanitize_html(str(row.iloc[c - 1]))
-            if any(cell_id == (merge[0] + data_start_row - 1, merge[1]) for merge in merges):
+            if any(
+                cell_id == (merge[0] + data_start_row - 1, merge[1]) for merge in merges
+            ):
                 for merge in merges:
                     if cell_id == (merge[0] + data_start_row - 1, merge[1]):
                         r_span, c_span = merge[2], merge[3]
@@ -47,7 +53,9 @@ def display_css_grid(rows, columns, data, title, headers, color_columns=[], merg
                         break
             elif not any(
                 (
-                    merge[0] + data_start_row - 1 <= r < merge[0] + data_start_row - 1 + merge[2]
+                    merge[0] + data_start_row - 1
+                    <= r
+                    < merge[0] + data_start_row - 1 + merge[2]
                 )
                 and (merge[1] <= c < merge[1] + merge[3])
                 for merge in merges
@@ -103,20 +111,28 @@ def display_css_grid(rows, columns, data, title, headers, color_columns=[], merg
     display(HTML(html))
     display(Javascript(script))
 
+
 # Example DataFrame and usage as in your provided code.
 # Example DataFrame
-df = pd.DataFrame({
-    "Category": ["A", "B", "C", "D"],
-    "PSI": [1, 6, 11, 16],
-    "SD": [2, 7, 12, 17],
-    "MER": [3, 8, 13, 18]
-})
+df = pd.DataFrame(
+    {
+        "Category": ["A", "B", "C", "D"],
+        "PSI": [1, 6, 11, 16],
+        "SD": [2, 7, 12, 17],
+        "MER": [3, 8, 13, 18],
+    }
+)
 
 # Title and Headers
 title = "Enhanced CSS Grid"
 headers = [
     [("QTR", 1, 4)],  # First row of headers spanning all four columns
-    [("Category", 1, 1), ("PSI", 2, 1), ("SD", 3, 1), ("MER", 4, 1)]  # Second row of headers each spanning one column
+    [
+        ("Category", 1, 1),
+        ("PSI", 2, 1),
+        ("SD", 3, 1),
+        ("MER", 4, 1),
+    ],  # Second row of headers each spanning one column
 ]
 
 # Merges specification (optional)
@@ -127,3 +143,60 @@ color_columns = [1]  # Color the first column differently for emphasis
 
 # Create and display the grid
 display_css_grid(4, 4, df, title, headers, color_columns, merges)
+
+
+def create_headers_from_df(df, header_groups=None):
+    """
+    Generate a list of header tuples from DataFrame columns, supporting merged headers.
+
+    Args:
+        df (pd.DataFrame): The DataFrame from which to derive column names.
+        header_groups (list of tuples, optional): Each tuple in the list should contain:
+            - a string representing the header title for the merged columns
+            - a list of column names that should fall under this header
+
+    Returns:
+        list: A list of lists containing header tuples in the format (header_name, start_column, column_span).
+    """
+    if header_groups is None:
+        # No merged headers, create simple one-to-one headers
+        header_row = [(col, idx + 1, 1) for idx, col in enumerate(df.columns)]
+        return [header_row]
+
+    headers = []
+    current_column = 1
+
+    # Process grouped headers for merging
+    for header_name, columns in header_groups:
+        # Find the starting column index for the first column in this group
+        start_col = df.columns.get_loc(columns[0]) + 1
+        # Count the number of columns in this group
+        span = len(columns)
+        headers.append((header_name, start_col, span))
+        current_column += span
+
+    # Add another row for individual column headers under each merged header
+    individual_headers = []
+    for header_name, columns in header_groups:
+        for col in columns:
+            start_col = df.columns.get_loc(col) + 1
+            individual_headers.append((col, start_col, 1))
+
+    return [headers, individual_headers]
+
+# Example Usage:
+df = pd.DataFrame({
+    "Category": ["A", "B", "C", "D"],
+    "PSI": [1, 6, 11, 16],
+    "SD": [2, 7, 12, 17],
+    "MER": [3, 8, 13, 18]
+})
+
+# # Specify header groups for merging
+# header_groups = [
+#     ("QTR", ["Category", "PSI"]),  # Group 'Category' and 'PSI' under 'QTR'
+#     ("Results", ["SD", "MER"])     # Group 'SD' and 'MER' under 'Results'
+# ]
+
+headers = create_headers_from_df(df)
+print(headers)  # Prints the generated headers with merging specified
