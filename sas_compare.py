@@ -1,116 +1,42 @@
 import os
-from typing import List, Optional
+from typing import List
 import pandas as pd
 import matplotlib.pyplot as plt
 
-
-def read_sas_dataframe(path: str) -> pd.DataFrame:
+def read_sas_cols(path: str, cols: List[str]) -> pd.DataFrame:
     """
-    Read a .sas7bdat file into a pandas DataFrame.
+    Read only a subset of columns from a .sas7bdat file.
+    (pandas.read_sas doesn’t support usecols, so we slice after reading.)
     """
-    return pd.read_sas(path, format="sas7bdat", encoding="utf-8")
-
+    df = pd.read_sas(path, format='sas7bdat', encoding='utf-8')
+    return df[cols].copy()
 
 def filter_actual(df: pd.DataFrame, grp_col: str = "grp") -> pd.DataFrame:
-    """
-    Filter the DataFrame to only rows where grp_col == 'actual'.
-    """
+    """Keep only rows where grp_col == 'actual'."""
     return df[df[grp_col] == "actual"].copy()
 
-
-def compute_diff(
-    old: pd.DataFrame,
-    new: pd.DataFrame,
-    key_cols: List[str],
-    value_cols: Optional[List[str]] = None,
-) -> pd.DataFrame:
+def parse_source_date(df: pd.DataFrame, src_col: str = "source") -> pd.DataFrame:
     """
-    Merge old/new on key_cols, compute mean of each value_col, and
-    calculate absolute and percent differences.
-
-    Returns a DataFrame with one row per key and columns:
-      - old_<col>_mean
-      - new_<col>_mean
-      - diff_<col>
-      - diff_<col>_pct
+    Convert a column of month_abbr_two-digit-year strings (e.g. 'apr_98')
+    into a datetime column named 'source_date'.
     """
-    # Identify which columns to compare
-    if value_cols is None:
-        exclude = set(key_cols + ["grp"])
-        value_cols = [
-            c
-            for c in old.columns
-            if c not in exclude and pd.api.types.is_numeric_dtype(old[c])
-        ]
+    df = df.copy()
+    # %b = locale’s abbreviated month name, %y = two-digit year
+    df['source_date'] = pd.to_datetime(df[src_col], format='%b_%y')
+    return df
 
-    # Group & mean
-    old_means = (
-        old.groupby(key_cols)[value_cols].mean().add_prefix("old_").reset_index()
-    )
-    new_means = (
-        new.groupby(key_cols)[value_cols].mean().add_prefix("new_").reset_index()
-    )
-
-    # Merge
-    merged = pd.merge(old_means, new_means, on=key_cols, how="inner")
-
-    # Compute diffs
-    for col in value_cols:
-        o = f"old_{col}"
-        n = f"new_{col}"
-        merged[f"diff_{col}"] = merged[n] - merged[o]
-        # guard divide by zero
-        merged[f"diff_{col}_pct"] = (
-            merged[f"diff_{col}"] / merged[o].replace({0: pd.NA}) * 100
-        )
-
-    return merged
-
-
-def plot_diff(
-    df: pd.DataFrame, key_cols: List[str], diff_col: str, title: Optional[str] = None
-):
-    """
-    Bar‐plot of a single diff column (absolute or percent) against the key.
-    """
-    x = df[key_cols].astype(str).agg("-".join, axis=1)
-    y = df[diff_col]
-
-    plt.figure(figsize=(8, 4))
-    plt.bar(x, y)
-    plt.xticks(rotation=45, ha="right")
-    plt.ylabel(diff_col)
-    if title:
-        plt.title(title)
-    plt.tight_layout()
-    plt.show()
-
-
-def compare_sas_directories(
+def compare_sas_newmean(
     dir_old: str,
     dir_new: str,
     key_cols: List[str],
+    cols_to_read: List[str] = ["source", "grp", "newmean"],
     grp_col: str = "grp",
-    value_cols: Optional[List[str]] = None,
+    src_col: str = "source"
 ):
     """
-    For each .sas7bdat file in dir_old, read the corresponding file
-    from dir_new, filter grp='actual', compute mean differences
-    and percent differences by key, and plot the results.
-
-    Parameters
-    ----------
-    dir_old : str
-        Path to the directory containing the “old” .sas7bdat files.
-    dir_new : str
-        Path to the directory containing the “new” .sas7bdat files.
-    key_cols : List[str]
-        Column name(s) to merge on.
-    grp_col : str
-        Name of the grouping column to filter on (default "grp").
-    value_cols : Optional[List[str]]
-        Specific numeric columns to compare. If None, all numeric
-        columns except keys and grp_col will be used.
+    For each .sas7bdat in dir_old, read only source/grp/newmean,
+    filter grp='actual', parse source→date, merge on key_cols,
+    compute diff in newmean, then sort & plot by that date.
     """
     for fname in os.listdir(dir_old):
         if not fname.lower().endswith(".sas7bdat"):
@@ -119,21 +45,49 @@ def compare_sas_directories(
         old_path = os.path.join(dir_old, fname)
         new_path = os.path.join(dir_new, fname)
         if not os.path.exists(new_path):
-            print(f"Skipping {fname!r}: no match in new directory.")
+            print(f"– skipping {fname!r}: no match in new directory.")
             continue
 
-        # Read and filter
-        df_old = filter_actual(read_sas_dataframe(old_path), grp_col)
-        df_new = filter_actual(read_sas_dataframe(new_path), grp_col)
+        # read only needed cols, filter to actual
+        df_old = filter_actual(read_sas_cols(old_path, cols_to_read), grp_col)
+        df_new = filter_actual(read_sas_cols(new_path, cols_to_read), grp_col)
 
-        # Compute diffs
-        diffs = compute_diff(df_old, df_new, key_cols, value_cols)
-        print(f"\nDifferences for {fname}:")
-        print(diffs)
+        # parse the 'source' strings into a real datetime
+        df_old = parse_source_date(df_old, src_col)
+        df_new = parse_source_date(df_new, src_col)
 
-        # Plot percent differences for each value column
-        pct_cols = [
-            c for c in diffs.columns if c.startswith("diff_") and c.endswith("_pct")
-        ]
-        for pct in pct_cols:
-            plot_diff(diffs, key_cols, pct, title=f"{fname} – {pct}")
+        # merge on your key(s)
+        merged = pd.merge(
+            df_old, df_new,
+            on=key_cols,
+            suffixes=("_old", "_new"),
+            how="inner"
+        )
+
+        # compute absolute and percent diff of newmean
+        merged["diff_newmean"] = merged["newmean_new"] - merged["newmean_old"]
+        merged["diff_newmean_pct"] = (
+            merged["diff_newmean"]
+            / merged["newmean_old"].replace({0: pd.NA})
+            * 100
+        )
+
+        # sort by the parsed date
+        merged.sort_values("source_date", inplace=True)
+
+        print(f"\n— Results for {fname}:")
+        print(merged[[*key_cols,
+                      "newmean_old", "newmean_new",
+                      "diff_newmean", "diff_newmean_pct",
+                      "source_date"]])
+
+        # plot percent difference in chronological order
+        x_labels = merged["source_date"].dt.strftime("%b-%y")
+        plt.figure(figsize=(6,4))
+        plt.bar(x_labels, merged["diff_newmean_pct"])
+        plt.xticks(rotation=45, ha="right")
+        plt.ylabel("diff_newmean_pct")
+        plt.title(f"{fname} %Δ newmean over time")
+        plt.tight_layout()
+        plt.show()
+
