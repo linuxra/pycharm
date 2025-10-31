@@ -434,3 +434,45 @@ dependencies = ["pydantic==1.10.12", "pandas", "openpyxl", "pyyaml"]
 [build-system]
 requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
+"""
+Main driver script:
+1. Reads one Excel file (one model) with multiple sheets (one metric each).
+2. Validates with Pydantic.
+3. Writes YAML files.
+4. Generates GraphQL mutation strings.
+"""
+
+from pathlib import Path
+from loaders.excel_loader import load_model_definitions_from_excel
+from loaders.yaml_writer import write_definition_yaml
+from graphql_converter import build_full_mutation
+
+
+# === CONFIG ===
+EXCEL_PATH = Path("FICO08_CC_OD_Definitions.xlsx")
+YAML_OUT_DIR = Path("out_definition_yaml")
+GRAPHQL_OUT_DIR = Path("out_mutations")
+
+
+def main():
+    YAML_OUT_DIR.mkdir(exist_ok=True)
+    GRAPHQL_OUT_DIR.mkdir(exist_ok=True)
+
+    # Step 1: Load and validate Excel definitions
+    defs_by_metric = load_model_definitions_from_excel(EXCEL_PATH)
+
+    # Step 2: Export YAML and GraphQL
+    for metric_name, def_obj in defs_by_metric.items():
+        # Write YAML
+        yaml_path = write_definition_yaml(def_obj, YAML_OUT_DIR)
+        print(f"✅ YAML written: {yaml_path}")
+
+        # Write GraphQL mutation
+        gql_str = build_full_mutation(def_obj)
+        gql_path = GRAPHQL_OUT_DIR / f"{def_obj.ModelId}_{metric_name}_definition.graphql"
+        gql_path.write_text(gql_str, encoding="utf-8")
+        print(f"✅ GraphQL written: {gql_path}")
+
+
+if __name__ == "__main__":
+    main()
