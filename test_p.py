@@ -404,6 +404,8 @@ for metric_name, def_obj in defs_by_metric.items():
     gql = build_full_mutation(def_obj)
     print(gql)
     print()
+
+
 def build_full_mutation(defn: ModelMetricDefinition) -> str:
     """
     Wraps the input_data block into a full GraphQL mutation string.
@@ -423,3 +425,12 @@ def build_full_mutation(defn: ModelMetricDefinition) -> str:
     )
 
     return mutation
+[project]
+name = "model_definitions"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = ["pydantic==1.10.12", "pandas", "openpyxl", "pyyaml"]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
