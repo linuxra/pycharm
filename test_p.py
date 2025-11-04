@@ -753,3 +753,76 @@ if __name__ == "__main__":
 
     model_id, yyyymm, bus_area, metric = sys.argv[1:]
     push_payload(int(model_id), metric, bus_area, yyyymm)
+
+
+"""
+write_metric_files_from_long_table.py
+-------------------------------------
+Splits a long-format metric DataFrame (or CSV) into individual Parquet files
+following the directory convention:
+
+    data_push/metrics/<ModelId>/<MetricId>/<MetricId>_<YYYYMM>.parquet
+
+Each file contains one row of data corresponding to that unique combination.
+"""
+
+import pandas as pd
+from pathlib import Path
+import sys
+from datetime import datetime
+
+# add code directory to import path
+sys.path.append(str(Path(__file__).resolve().parents[1] / "code"))
+from common.constants import METRICS_DIR
+
+
+def write_metric_files(df: pd.DataFrame):
+    """
+    Save each unique (ModelId, MetricId, AsOfYYYYMM) row to its respective Parquet file.
+    Expects columns: ModelId, BusinessArea, MetricId, AsOfYYYYMM, MetricValue
+    """
+    required_cols = {"ModelId", "BusinessArea", "MetricId", "AsOfYYYYMM", "MetricValue"}
+    missing = required_cols - set(df.columns)
+    if missing:
+        raise ValueError(f"Input data missing required columns: {missing}")
+
+    for _, row in df.iterrows():
+        model_id = int(row["ModelId"])
+        metric = str(row["MetricId"]).upper()
+        yyyymm = str(row["AsOfYYYYMM"])
+        value = float(row["MetricValue"])
+
+        model_dir = METRICS_DIR / str(model_id) / metric
+        model_dir.mkdir(parents=True, exist_ok=True)
+        file_path = model_dir / f"{metric}_{yyyymm}.parquet"
+
+        row_df = pd.DataFrame([row])
+        row_df.to_parquet(file_path, index=False)
+        print(f"✅ Saved: {file_path}")
+
+
+def main(input_path: Path):
+    """
+    Main entry — reads CSV or Parquet and calls write_metric_files().
+    """
+    ext = input_path.suffix.lower()
+    if ext == ".csv":
+        df = pd.read_csv(input_path)
+    elif ext == ".parquet":
+        df = pd.read_parquet(input_path)
+    else:
+        raise ValueError("Unsupported input file type. Use .csv or .parquet")
+
+    print(f"📦 Loaded {len(df)} records from {input_path}")
+    write_metric_files(df)
+    print("🎉 All metric files written successfully.")
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: python scripts/write_metric_files_from_long_table.py <path_to_input_data>")
+        sys.exit(1)
+
+    input_file = Path(sys.argv[1])
+    main(input_file)
+
