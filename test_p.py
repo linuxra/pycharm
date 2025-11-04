@@ -476,3 +476,280 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+"""
+model_metric_data_payload.py
+----------------------------
+Defines the Pydantic model for the Data Payload (metric-level JSON)
+used in the OMR data-push process.
+
+Python 3.10 compatible, Pydantic 1.10.12.
+"""
+
+from pydantic import BaseModel, Field, confloat
+from datetime import date
+from typing import Optional
+
+
+class ModelMetricDataPayload(BaseModel):
+    """
+    Represents a single model–metric–month record to be pushed
+    through GraphQL mutation.
+
+    Each instance corresponds to ONE record (one .parquet file).
+    """
+
+    ModelId: int = Field(..., description="Unique model identifier")
+    TestId: str = Field(..., description="Unique test identifier (ModelId_MetricId)")
+    MetricId: str = Field(..., description="Metric type (e.g., PSI, SD, MAD)")
+    ModelUseId: int = Field(..., description="Unique identifier from model registry")
+    Result_date: date = Field(..., description="As-of date for the metric (1st of month)")
+    Value: confloat(ge=-1e6, le=1e6) = Field(..., description="Metric numeric value")
+    Info: Optional[str] = Field(
+        None,
+        description="Optional additional context (e.g., 'Auto Data Push 202505')"
+    )
+
+    class Config:
+        """Pydantic configuration."""
+        extra = "forbid"                # forbid unknown fields
+        validate_assignment = True      # validate on assignment
+
+    def to_dict(self) -> dict:
+        """Return dict representation suitable for YAML or GraphQL serialization."""
+        return self.dict(exclude_none=True)
+
+
+
+"""
+graphql_data_converter.py
+--------------------------
+Generates the GraphQL mutation text for ModelMetricDataPayload.
+
+Maintains 1:1 structure with backend GraphQL schema.
+"""
+
+from code.model_metric_data_payload import ModelMetricDataPayload
+
+
+def build_metric_data_mutation(p: ModelMetricDataPayload) -> str:
+    """
+    Construct GraphQL mutation text for a single payload.
+
+    Parameters
+    ----------
+    p : ModelMetricDataPayload
+        Validated Pydantic object.
+
+    Returns
+    -------
+    str
+        GraphQL mutation string ready for POST request.
+    """
+    return f"""
+mutation {{
+  CreateOmStgMetricData(input_data: {{
+    ModelId: {p.ModelId}
+    TestId: "{p.TestId}"
+    MetricId: "{p.MetricId}"
+    ModelUseId: {p.ModelUseId}
+    Result_date: "{p.Result_date}"
+    Value: {p.Value}
+    Info: "{p.Info or ''}"
+  }}) {{
+    success
+    message
+    errors {{ code description }}
+    data
+  }}
+}}
+""".strip()
+
+
+"""
+constants.py
+-------------
+Holds global constants, base paths, and environment-specific configuration.
+"""
+
+from pathlib import Path
+
+# Because we're inside code/common/, go up two levels to project root
+BASE_DIR = Path(__file__).resolve().parents[2]
+
+# Core directories
+METRICS_DIR = BASE_DIR / "data_push" / "metrics"
+REGISTRY_PATH = BASE_DIR / "metadata" / "model_use_registry.parquet"
+YAML_OUT_DIR = BASE_DIR / "data_push" / "out_data_yaml"
+GRAPHQL_OUT_DIR = BASE_DIR / "data_push" / "out_data_mutations"
+LOG_DIR = BASE_DIR / "logs"
+
+# API Configuration (replace later with secure secrets)
+ENDPOINT = "https://your-api-endpoint/graphql"
+TOKEN = "YOUR_SECURE_TOKEN"
+
+# Generic info text used in payload
+DEFAULT_INFO = "Automated Data Push"
+
+
+"""
+date_utils.py
+--------------
+Provides month/quarter utility helpers for metric payload generation.
+"""
+
+from datetime import datetime
+from typing import List
+
+
+def quarter_end_yyyymm(year: int, quarter: int) -> str:
+    """Return the ending YYYYMM for a given quarter."""
+    month_map = {1: 3, 2: 6, 3: 9, 4: 12}
+    return f"{year}{month_map[quarter]:02d}"
+
+
+def last_n_months(end_yyyymm: str, n: int) -> List[str]:
+    """
+    Generate list of YYYYMM strings for previous n months
+    including end_yyyymm.
+    """
+    y, m = int(end_yyyymm[:4]), int(end_yyyymm[4:6])
+    months = []
+    for _ in range(n):
+        months.append(f"{y}{m:02d}")
+        m -= 1
+        if m == 0:
+            m = 12
+            y -= 1
+    return months
+
+
+def yyyymm_to_date(yyyymm: str) -> str:
+    """Convert YYYYMM → YYYY-MM-01 string (Result_date format)."""
+    return f"{yyyymm[:4]}-{yyyymm[4:]}-01"
+"""
+utils.py
+---------
+Utility functions shared across scripts (logging, directories, etc.)
+"""
+
+import logging
+from pathlib import Path
+from datetime import datetime
+
+
+def setup_logger(log_dir: Path, log_prefix: str) -> logging.Logger:
+    """
+    Create and return a logger that writes to a timestamped file.
+
+    Example
+    -------
+    >>> logger = setup_logger(LOG_DIR, "data_push_501319_PSI_202505")
+    """
+    log_dir.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_path = log_dir / f"{log_prefix}_{ts}.log"
+
+    logger = logging.getLogger(log_prefix)
+    logger.setLevel(logging.INFO)
+
+    fh = logging.FileHandler(log_path, mode="a", encoding="utf-8")
+    fh.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+    logger.addHandler(fh)
+
+    # also log to console
+    ch = logging.StreamHandler()
+    ch.setFormatter(logging.Formatter("%(message)s"))
+    logger.addHandler(ch)
+
+    logger.info(f"Logger initialized → {log_path}")
+    return logger
+"""
+generate_and_submit_single.py
+-----------------------------
+Executes one GraphQL data push for a single
+(ModelId, YYYYMM, BusArea, MetricType).
+"""
+
+import sys
+import pandas as pd
+import requests
+from pathlib import Path
+from datetime import datetime
+from code.model_metric_data_payload import ModelMetricDataPayload
+from code.graphql_data_converter import build_metric_data_mutation
+from code.common.constants import METRICS_DIR, REGISTRY_PATH, ENDPOINT, TOKEN, LOG_DIR, DEFAULT_INFO
+from code.common.date_utils import yyyymm_to_date
+from code.common.utils import setup_logger
+
+
+def load_metric_value(model_id: int, metric: str, yyyymm: str):
+    """
+    Load metric value for given model, metric, and month.
+    Expected file: data_push/metrics/<ModelId>/<Metric>/<Metric>_<YYYYMM>.parquet
+    """
+    file_path = METRICS_DIR / str(model_id) / metric / f"{metric}_{yyyymm}.parquet"
+    if not file_path.exists():
+        raise FileNotFoundError(f"Missing file: {file_path}")
+
+    df = pd.read_parquet(file_path)
+    if df.empty:
+        raise ValueError(f"Empty file: {file_path}")
+
+    value = float(df["MetricValue"].iloc[0])
+    business_area = df["BusinessArea"].iloc[0]
+    return value, business_area
+
+
+def lookup_model_use_id(model_id: int, metric: str, bus_area: str) -> int:
+    """Fetch ModelUseId from registry parquet file."""
+    df = pd.read_parquet(REGISTRY_PATH)
+    row = df[
+        (df["ModelId"] == model_id)
+        & (df["MetricId"] == metric)
+        & (df["BusinessArea"] == bus_area)
+    ]
+    if row.empty:
+        raise ValueError(f"No registry entry for {model_id}-{metric}-{bus_area}")
+    return int(row["ModelUseId"].iloc[0])
+
+
+def push_payload(model_id: int, metric: str, bus_area: str, yyyymm: str):
+    """Main function to push one metric payload."""
+    logger = setup_logger(LOG_DIR, f"data_push_{model_id}_{metric}_{yyyymm}")
+    logger.info(f"Starting push for {model_id}-{metric}-{yyyymm}")
+
+    value, business_area = load_metric_value(model_id, metric, yyyymm)
+    model_use_id = lookup_model_use_id(model_id, metric, bus_area)
+
+    payload = ModelMetricDataPayload(
+        ModelId=model_id,
+        TestId=f"{model_id}_{metric}",
+        MetricId=metric,
+        ModelUseId=model_use_id,
+        Result_date=yyyymm_to_date(yyyymm),
+        Value=value,
+        Info=f"{DEFAULT_INFO} {yyyymm}"
+    )
+
+    mutation = build_metric_data_mutation(payload)
+
+    headers = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"}
+    response = requests.post(ENDPOINT, json={"query": mutation}, headers=headers)
+
+    if response.status_code != 200:
+        logger.error(f"GraphQL error: {response.text}")
+        raise RuntimeError(f"GraphQL error: {response.text}")
+
+    logger.info(f"✅ Push complete for {metric} {yyyymm}")
+    logger.info(response.json())
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 5:
+        print("Usage: python scripts/generate_and_submit_single.py <ModelId> <YYYYMM> <BusArea> <Metric>")
+        sys.exit(1)
+
+    model_id, yyyymm, bus_area, metric = sys.argv[1:]
+    push_payload(int(model_id), metric, bus_area, yyyymm)
