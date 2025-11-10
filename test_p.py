@@ -826,3 +826,75 @@ if __name__ == "__main__":
     input_file = Path(sys.argv[1])
     main(input_file)
 
+from pathlib import Path
+import pandas as pd
+from code.model_metric_data_payload import ModelMetricDataPayload
+from code.common.constants import METRICS_DIR, REGISTRY_PATH, DEFAULT_INFO
+from code.common.date_utils import yyyymm_to_date
+
+def load_metric_value(model_id: int, metric: str, yyyymm: str):
+    file_path = METRICS_DIR / str(model_id) / metric / f"{metric}_{yyyymm}.parquet"
+    df = pd.read_parquet(file_path)
+    value = float(df["MetricValue"].iloc[0])
+    business_area = df["BusinessArea"].iloc[0]
+    return value, business_area
+
+def lookup_model_use_id(model_id: int, metric: str, bus_area: str) -> int:
+    df = pd.read_parquet(REGISTRY_PATH)
+    row = df[
+        (df["ModelId"] == model_id)
+        & (df["MetricId"] == metric)
+        & (df["BusinessArea"] == bus_area)
+    ]
+    if row.empty:
+        raise ValueError(f"No registry entry for {model_id}-{metric}-{bus_area}")
+    return int(row["ModelUseId"].iloc[0])
+
+def create_payload(model_id: int, metric: str, bus_area: str, yyyymm: str) -> ModelMetricDataPayload:
+    """Build and return validated payload object without sending."""
+    value, business_area = load_metric_value(model_id, metric, yyyymm)
+    model_use_id = lookup_model_use_id(model_id, metric, bus_area)
+    return ModelMetricDataPayload(
+        ModelId=model_id,
+        TestId=f"{model_id}_{metric}_{bus_area or 'NA'}",
+        MetricId=metric,
+        ModelUseId=model_use_id,
+        Result_date=yyyymm_to_date(yyyymm),
+        Value=value,
+        Info=f"{DEFAULT_INFO} {yyyymm}",
+    )
+"""
+push_payload.py
+---------------
+Takes a payload object or JSON and sends it to GraphQL.
+"""
+
+import sys
+import requests
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parents[1] / "code"))
+
+from payload_builder import create_payload
+from graphql_data_converter import build_metric_data_mutation
+from common.constants import ENDPOINT, TOKEN, LOG_DIR
+from common.utils import setup_logger
+
+def push_payload(model_id: int, metric: str, bus_area: str, yyyymm: str):
+    logger = setup_logger(LOG_DIR, f"data_push_{model_id}_{metric}_{yyyymm}")
+    payload = create_payload(model_id, metric, bus_area, yyyymm)
+    mutation = build_metric_data_mutation(payload)
+
+    headers = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"}
+    response = requests.post(ENDPOINT, json={"query": mutation}, headers=headers)
+    if response.status_code != 200:
+        logger.error(f"GraphQL error: {response.text}")
+        raise RuntimeError(response.text)
+    logger.info(f"✅ Push complete for {payload.TestId} {yyyymm}")
+    logger.info(response.json())
+
+if __name__ == "__main__":
+    if len(sys.argv) != 5:
+        print("Usage: python scripts/push_payload.py <ModelId> <YYYYMM> <BusArea> <Metric>")
+        sys.exit(1)
+    model_id, yyyymm, bus_area, metric = sys.argv[1:]
+    push_payload(int(model_id), metric, bus_area, yyyymm)
