@@ -898,3 +898,257 @@ if __name__ == "__main__":
         sys.exit(1)
     model_id, yyyymm, bus_area, metric = sys.argv[1:]
     push_payload(int(model_id), metric, bus_area, yyyymm)
+
+
+"""
+payload_builder.py
+------------------
+Creates and validates metric data payloads for a single
+(ModelId, MetricId, BusinessArea, YYYYMM), builds GraphQL mutations,
+and saves all artifacts (.yaml, .json, .graphql) for later submission.
+
+Flow:
+1. Read metric value from:
+       data_push/metrics/<ModelId>/<MetricId>/<MetricId>_<YYYYMM>.parquet
+2. Look up ModelUseId & TestId from model_use_registry.parquet
+3. Build ModelMetricDataPayload (Pydantic validated)
+4. Generate GraphQL mutation text
+5. Save to:
+       data_push/out_data_yaml/<ModelId>_<MetricId>_<YYYYMM>.yaml
+       data_push/out_data_yaml/<ModelId>_<MetricId>_<YYYYMM>.json
+       data_push/out_data_mutations/<ModelId>_<MetricId>_<YYYYMM>.graphql
+"""
+
+import json
+from pathlib import Path
+
+import pandas as pd
+import yaml
+
+from model_metric_data_payload import ModelMetricDataPayload
+from graphql_data_converter import build_metric_data_mutation
+from common.constants import (
+    METRICS_DIR,
+    REGISTRY_PATH,
+    DEFAULT_INFO,
+    YAML_OUT_DIR,
+    GRAPHQL_OUT_DIR,
+)
+from common.date_utils import yyyymm_to_date
+
+
+def load_metric_value(model_id: int, metric_id: str, yyyymm: str):
+    """
+    Load metric value for given model, metric, and month.
+
+    Expects file:
+        data_push/metrics/<ModelId>/<MetricId>/<MetricId>_<YYYYMM>.parquet
+
+    Parquet must contain columns:
+        - MetricValue
+        - BusinessArea
+    """
+    file_path = METRICS_DIR / str(model_id) / metric_id / f"{metric_id}_{yyyymm}.parquet"
+    if not file_path.exists():
+        raise FileNotFoundError(f"Missing metric file: {file_path}")
+
+    df = pd.read_parquet(file_path)
+    if df.empty:
+        raise ValueError(f"Empty metric file: {file_path}")
+
+    value = float(df["MetricValue"].iloc[0])
+    business_area = str(df["BusinessArea"].iloc[0]).upper()
+    return value, business_area
+
+
+def lookup_registry(model_id: int, metric_id: str, bus_area: str):
+    """
+    Look up (ModelUseId, TestId) from registry.
+
+    Registry schema must contain:
+        ModelId, BusinessArea, MetricId, TestId, ModelUseId
+
+    BusinessArea + MetricId comparisons are case-insensitive normalized to upper.
+    """
+    if not REGISTRY_PATH.exists():
+        raise FileNotFoundError(f"Registry not found: {REGISTRY_PATH}")
+
+    df = pd.read_parquet(REGISTRY_PATH)
+
+    metric_id_u = metric_id.upper()
+    bus_area_u = (bus_area or "NA").upper()
+
+    row = df[
+        (df["ModelId"] == model_id)
+        & (df["MetricId"].str.upper() == metric_id_u)
+        & (df["BusinessArea"].str.upper() == bus_area_u)
+    ]
+
+    if row.empty:
+        raise ValueError(
+            f"No registry entry for ModelId={model_id}, MetricId={metric_id_u}, "
+            f"BusinessArea={bus_area_u}"
+        )
+
+    model_use_id = int(row["ModelUseId"].iloc[0])
+    test_id = str(row["TestId"].iloc[0])
+
+    return model_use_id, test_id
+
+
+def create_payload(model_id: int, metric_id: str, bus_area: str, yyyymm: str) -> ModelMetricDataPayload:
+    """
+    Build a validated ModelMetricDataPayload for one model-metric-month.
+
+    TestId is NOT recomputed here; it is read from the registry to ensure
+    it matches the definition-time convention:
+        {ModelId}_{MetricNameNoSpaces}_{BusinessArea|NA}
+    """
+    value, inferred_bus_area = load_metric_value(model_id, metric_id, yyyymm)
+
+    # Prefer explicit bus_area parameter, but ensure consistency with file.
+    bus_area_u = (bus_area or inferred_bus_area or "NA").upper()
+
+    model_use_id, test_id = lookup_registry(model_id, metric_id, bus_area_u)
+
+    payload = ModelMetricDataPayload(
+        ModelId=model_id,
+        TestId=test_id,
+        MetricId=metric_id.upper(),
+        ModelUseId=model_use_id,
+        Result_date=yyyymm_to_date(yyyymm),
+        Value=value,
+        Info=f"{DEFAULT_INFO} {yyyymm}",
+    )
+    return payload
+
+
+def save_payload_files(payload: ModelMetricDataPayload, model_id: int, metric_id: str, yyyymm: str) -> Path:
+    """
+    Save payload as:
+      - YAML
+      - JSON
+      - GraphQL (.graphql)
+
+    Returns
+    -------
+    Path
+        Path to the .graphql file (for the push step to use).
+    """
+    YAML_OUT_DIR.mkdir(parents=True, exist_ok=True)
+    GRAPHQL_OUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    metric_id_u = metric_id.upper()
+    base_name = f"{model_id}_{metric_id_u}_{yyyymm}"
+
+    yaml_path = YAML_OUT_DIR / f"{base_name}.yaml"
+    json_path = YAML_OUT_DIR / f"{base_name}.json"
+    graphql_path = GRAPHQL_OUT_DIR / f"{base_name}.graphql"
+
+    data = payload.dict(exclude_none=True)
+
+    # YAML
+    with open(yaml_path, "w", encoding="utf-8") as yf:
+        yaml.safe_dump(data, yf, sort_keys=False)
+
+    # JSON
+    with open(json_path, "w", encoding="utf-8") as jf:
+        json.dump(data, jf, indent=2)
+
+    # GraphQL
+    mutation = build_metric_data_mutation(payload)
+    graphql_path.write_text(mutation, encoding="utf-8")
+
+    print(f"✅ Saved payload artifacts for {base_name}:")
+    print(f"   - {yaml_path}")
+    print(f"   - {json_path}")
+    print(f"   - {graphql_path}")
+
+    return graphql_path
+
+
+def create_and_save_all(model_id: int, metric_id: str, bus_area: str, yyyymm: str) -> Path:
+    """
+    End-to-end:
+      1. Build payload (from metrics + registry)
+      2. Save YAML/JSON/GraphQL
+      3. Return GraphQL file path.
+    """
+    payload = create_payload(model_id, metric_id, bus_area, yyyymm)
+    return save_payload_files(payload, model_id, metric_id, yyyymm)
+
+
+if __name__ == "__main__":
+    # Allow direct CLI usage:
+    # python -m code.payload_builder <ModelId> <MetricId> <BusinessArea> <YYYYMM>
+    import sys
+
+    if len(sys.argv) != 5:
+        print("Usage: python -m code.payload_builder <ModelId> <MetricId> <BusinessArea> <YYYYMM>")
+        sys.exit(1)
+
+    model_id_arg = int(sys.argv[1])
+    metric_id_arg = sys.argv[2]
+    bus_area_arg = sys.argv[3]
+    yyyymm_arg = sys.argv[4]
+
+    create_and_save_all(model_id_arg, metric_id_arg, bus_area_arg, yyyymm_arg)
+
+
+"""
+push_payload.py
+---------------
+Reads a saved YAML or JSON payload and sends it via GraphQL.
+"""
+
+import sys
+import requests
+import yaml
+import json
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parents[1] / "code"))
+
+from model_metric_data_payload import ModelMetricDataPayload
+from graphql_data_converter import build_metric_data_mutation
+from common.constants import ENDPOINT, TOKEN, LOG_DIR
+from common.utils import setup_logger
+
+
+def load_payload(file_path: Path) -> ModelMetricDataPayload:
+    """Load YAML or JSON payload and validate."""
+    ext = file_path.suffix.lower()
+    if ext == ".yaml":
+        data = yaml.safe_load(open(file_path))
+    elif ext == ".json":
+        data = json.load(open(file_path))
+    else:
+        raise ValueError("Unsupported file type. Use .yaml or .json")
+
+    payload = ModelMetricDataPayload(**data)
+    return payload
+
+
+def push_payload_from_file(file_path: Path):
+    """Push a single payload file to GraphQL."""
+    payload = load_payload(file_path)
+    logger = setup_logger(LOG_DIR, f"push_{payload.TestId}")
+    mutation = build_metric_data_mutation(payload)
+
+    headers = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"}
+    response = requests.post(ENDPOINT, json={"query": mutation}, headers=headers)
+
+    if response.status_code != 200:
+        logger.error(f"❌ GraphQL error: {response.text}")
+        raise RuntimeError(response.text)
+
+    logger.info(f"✅ Push complete for {payload.TestId}")
+    logger.info(response.json())
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: python scripts/push_payload.py <path_to_payload.yaml|json>")
+        sys.exit(1)
+
+    file_path = Path(sys.argv[1])
+    push_payload_from_file(file_path)
