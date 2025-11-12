@@ -1152,3 +1152,187 @@ if __name__ == "__main__":
 
     file_path = Path(sys.argv[1])
     push_payload_from_file(file_path)
+
+
+
+"""
+Main driver utilities for definition generation.
+
+Changes:
+- Exposes a function that takes (model_id, business_area, metric_id)
+- Reads from input/<model_id>_<business_area>_<metric_id>_def.xlsx
+- Validates with Pydantic (via your existing loader)
+- Writes YAML files and GraphQL mutation strings
+- Includes a batch helper to loop over multiple (model_id, business_area, metric_id)
+
+Requires:
+- loaders.excel_loader.load_model_definitions_from_excel
+- loaders.yaml_writer.write_definition_yaml
+- graphql_converter.build_full_mutation
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Iterable, Tuple, Dict, Any
+
+from loaders.excel_loader import load_model_definitions_from_excel
+from loaders.yaml_writer import write_definition_yaml
+from graphql_converter import build_full_mutation
+
+
+# === DEFAULT PATHS ===
+INPUT_DIR = Path("input")
+YAML_OUT_DIR = Path("out_definition_yaml")
+GRAPHQL_OUT_DIR = Path("out_mutations")
+
+
+def generate_definition_artifacts(
+    model_id: str,
+    business_area: str,
+    metric_id: str,
+    input_dir: Path = INPUT_DIR,
+    yaml_out_dir: Path = YAML_OUT_DIR,
+    graphql_out_dir: Path = GRAPHQL_OUT_DIR,
+) -> Dict[str, Path]:
+    """
+    Generate YAML + GraphQL artifacts for a single (model_id, business_area, metric_id).
+
+    It expects an Excel file at:
+        input_dir / f"{model_id}_{business_area}_{metric_id}_def.xlsx"
+
+    The Excel may contain one or multiple sheets (one metric per sheet). If multiple
+    are present, this function selects the sheet/definition that matches `metric_id`.
+    If only one is present, that one is used.
+
+    Parameters
+    ----------
+    model_id : str
+        The model identifier (e.g., "FICO08").
+    business_area : str
+        The business area (e.g., "CC").
+    metric_id : str
+        The metric identifier (e.g., "PSI").
+    input_dir : Path, optional
+        Directory containing input Excel files. Defaults to "input/".
+    yaml_out_dir : Path, optional
+        Directory to write YAML outputs. Defaults to "out_definition_yaml/".
+    graphql_out_dir : Path, optional
+        Directory to write GraphQL outputs. Defaults to "out_mutations/".
+
+    Returns
+    -------
+    Dict[str, Path]
+        Dictionary with keys:
+            - "excel_path": Path to the source Excel
+            - "yaml_path": Path to the written YAML
+            - "graphql_path": Path to the written GraphQL mutation
+
+    Raises
+    ------
+    FileNotFoundError
+        If the expected Excel file does not exist.
+    ValueError
+        If `metric_id` is not found among loaded definitions (when multiple present).
+    """
+    # Ensure output directories exist
+    yaml_out_dir.mkdir(parents=True, exist_ok=True)
+    graphql_out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Build expected Excel path
+    excel_filename = f"{model_id}_{business_area}_{metric_id}_def.xlsx"
+    excel_path = input_dir / excel_filename
+
+    if not excel_path.exists():
+        raise FileNotFoundError(
+            f"Input Excel not found: {excel_path}. "
+            f"Expected pattern: <model>_<business>_<metric>_def.xlsx"
+        )
+
+    # Load and validate (returns a mapping: metric_name -> pydantic model object)
+    defs_by_metric = load_model_definitions_from_excel(excel_path)
+
+    # Select the right metric definition
+    if len(defs_by_metric) == 0:
+        raise ValueError(f"No definitions found in Excel: {excel_path}")
+
+    if metric_id in defs_by_metric:
+        def_obj = defs_by_metric[metric_id]
+        selected_metric = metric_id
+    elif len(defs_by_metric) == 1:
+        # If only one sheet/metric, use it even if the name doesn't match exactly
+        selected_metric, def_obj = next(iter(defs_by_metric.items()))
+    else:
+        available = ", ".join(defs_by_metric.keys())
+        raise ValueError(
+            f"Metric '{metric_id}' not found in {excel_path.name}. "
+            f"Available metrics: {available}"
+        )
+
+    # Write YAML
+    yaml_path = write_definition_yaml(def_obj, yaml_out_dir)
+    print(f"✅ YAML written: {yaml_path}")
+
+    # Build and write GraphQL
+    gql_str = build_full_mutation(def_obj)
+    gql_filename = f"{def_obj.ModelId}_{selected_metric}_definition.graphql"
+    graphql_path = graphql_out_dir / gql_filename
+    graphql_path.write_text(gql_str, encoding="utf-8")
+    print(f"✅ GraphQL written: {graphql_path}")
+
+    return {
+        "excel_path": excel_path,
+        "yaml_path": yaml_path,
+        "graphql_path": graphql_path,
+    }
+
+
+def run_batch(
+    items: Iterable[Tuple[str, str, str]],
+    input_dir: Path = INPUT_DIR,
+    yaml_out_dir: Path = YAML_OUT_DIR,
+    graphql_out_dir: Path = GRAPHQL_OUT_DIR,
+) -> Dict[Tuple[str, str, str], Dict[str, Path]]:
+    """
+    Run `generate_definition_artifacts` for a list of (model_id, business_area, metric_id).
+
+    Parameters
+    ----------
+    items : Iterable[Tuple[str, str, str]]
+        Sequence of triples like: [("FICO08", "CC", "PSI"), ("FICO08", "CC", "SD"), ...]
+    input_dir : Path, optional
+        Directory containing the input Excel files.
+    yaml_out_dir : Path, optional
+        Directory for YAML outputs.
+    graphql_out_dir : Path, optional
+        Directory for GraphQL outputs.
+
+    Returns
+    -------
+    Dict[Tuple[str, str, str], Dict[str, Path]]
+        Mapping of the input triple to the returned paths dictionary.
+    """
+    results: Dict[Tuple[str, str, str], Dict[str, Path]] = {}
+    for model_id, business_area, metric_id in items:
+        print(f"\n--- Processing {model_id}/{business_area}/{metric_id} ---")
+        artifacts = generate_definition_artifacts(
+            model_id=model_id,
+            business_area=business_area,
+            metric_id=metric_id,
+            input_dir=input_dir,
+            yaml_out_dir=yaml_out_dir,
+            graphql_out_dir=graphql_out_dir,
+        )
+        results[(model_id, business_area, metric_id)] = artifacts
+    return results
+
+
+if __name__ == "__main__":
+    # Example usage: loop a list of params
+    triplets = [
+        ("FICO08", "CC", "PSI"),
+        ("FICO08", "CC", "SD"),
+        ("FICO08", "CC", "MAD"),
+    ]
+    run_batch(triplets)
+
