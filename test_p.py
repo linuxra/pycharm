@@ -1336,3 +1336,54 @@ if __name__ == "__main__":
     ]
     run_batch(triplets)
 
+
+
+from pathlib import Path
+import sys
+import pandas as pd
+
+# add code/ to path to reuse constants
+sys.path.append(str(Path(__file__).resolve().parents[1] / "code"))
+from common.constants import REGISTRY_PATH, BASE_DIR
+
+EXCEL_SRC = BASE_DIR / "metadata" / "model_use_registry.xlsx"
+
+REQUIRED_COLS = {
+    "ModelId", "BusinessArea", "MetricId", "MetricName",
+    "TestId", "ModelUseId", "Category", "ThresholdType"
+}
+
+def validate_test_id(row) -> bool:
+    expected = f"{int(row['ModelId'])}_{str(row['MetricName']).replace(' ', '')}_{(row['BusinessArea'] or 'NA')}"
+    return str(row["TestId"]) == expected
+
+def main():
+    if not EXCEL_SRC.exists():
+        raise FileNotFoundError(f"Missing Excel registry: {EXCEL_SRC}")
+
+    df = pd.read_excel(EXCEL_SRC)
+
+    missing = REQUIRED_COLS - set(df.columns)
+    if missing:
+        raise ValueError(f"Excel missing columns: {missing}")
+
+    # normalize
+    df["BusinessArea"] = df["BusinessArea"].fillna("NA").str.upper()
+    df["MetricId"] = df["MetricId"].str.upper()
+
+    # validate TestId format
+    bad = df[~df.apply(validate_test_id, axis=1)]
+    if not bad.empty:
+        cols = ["ModelId", "MetricName", "BusinessArea", "TestId"]
+        raise ValueError(f"Invalid TestId rows:\n{bad[cols]}")
+
+    # drop dupes by (ModelId, MetricId, BusinessArea), keep last edited row
+    df = df.drop_duplicates(subset=["ModelId", "MetricId", "BusinessArea"], keep="last")
+
+    REGISTRY_PATH.parent.mkdir(parents=True, exist_ok=True)
+    df.to_parquet(REGISTRY_PATH, index=False)
+    print(f"✅ Synced registry → {REGISTRY_PATH} ({len(df)} rows)")
+
+if __name__ == "__main__":
+    main()
+
