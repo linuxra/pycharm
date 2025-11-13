@@ -1387,3 +1387,605 @@ def main():
 if __name__ == "__main__":
     main()
 
+
+"""
+registry_batch_driver.py
+
+Registry-driven batch runner for GraphQL *data* payloads.
+
+Purpose
+-------
+- Read a model_use_registry file containing:
+    (model_id, bus_area, metric, optional active/start_yyyymm/end_yyyymm).
+- For each registry row, loop over months:
+    [anchor_yyyymm, anchor_yyyymm-1, ..., total = prev_n]
+- For each (row, month) combination:
+    1. Build a GraphQL file path:
+           {graphql_root}/{model_id}_{bus_area}_{metric}_{yyyymm}_data.graphql
+    2. Read the GraphQL text from that file.
+    3. Call a user function:
+
+           func(model_id, bus_area, metric, yyyymm, graphql_text)
+
+- If any error happens for a given row at any month, skip the remaining
+  months for that row and continue with the next row.
+- Logs key events and errors using the `logging` module.
+
+Example
+-------
+from pathlib import Path
+
+def push_payload(model_id: str, bus_area: str, metric: str,
+                 yyyymm: str, graphql_text: str) -> None:
+    # your implementation, e.g. send GraphQL string to an API
+    ...
+
+run_from_registry(
+    registry_path=Path("metadata/model_use_registry.xlsx"),
+    graphql_root=Path("data_push/graphql"),
+    yyyymm="202509",
+    prev_n=3,
+    func=push_payload,
+    only_active=True,
+    # include_models=["FICO08"],    # optional filters
+    # include_bus_areas=["CC"],
+    # include_metrics=["PSI", "SD"],
+)
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Callable, Dict, Iterable, List, Optional, Tuple
+import logging
+
+import pandas as pd
+
+__all__ = [
+    "RegistryRow",
+    "load_model_use_registry",
+    "get_previous_months",
+    "build_graphql_path",
+    "run_from_registry",
+]
+
+# Module-level logger; can be overridden / configured by the caller.
+logger = logging.getLogger(__name__)
+
+
+# ============================================================================
+# Logging helpers
+# ============================================================================
+
+def _ensure_logger_configured(log: logging.Logger) -> logging.Logger:
+    """
+    Ensure at least a basic logging configuration exists.
+
+    If the root logger and this logger both have no handlers, configure
+    a simple console handler at INFO level.
+
+    This keeps the module safe to use standalone, but still allows
+    applications to fully customize logging if they want.
+    """
+    root = logging.getLogger()
+    if not root.handlers and not log.handlers:
+        logging.basicConfig(level=logging.INFO)
+    return log
+
+
+# ============================================================================
+# Date helpers
+# ============================================================================
+
+def _parse_yyyymm(yyyymm: str) -> datetime:
+    """
+    Parse a 'YYYYMM' string into a datetime at day=1.
+
+    Parameters
+    ----------
+    yyyymm : str
+        String in the form 'YYYYMM'.
+
+    Returns
+    -------
+    datetime
+        Datetime with year and month from the string, day=1.
+
+    Raises
+    ------
+    ValueError
+        If the format is invalid or month is out of 1..12.
+    """
+    s = str(yyyymm).strip()
+    if len(s) != 6 or not s.isdigit():
+        raise ValueError(f"Invalid yyyymm format: {yyyymm!r} (expected 'YYYYMM')")
+    year = int(s[:4])
+    month = int(s[4:])
+    if not (1 <= month <= 12):
+        raise ValueError(f"Invalid month in yyyymm: {yyyymm!r}")
+    return datetime(year, month, 1)
+
+
+def get_previous_months(yyyymm: str, prev_n: int) -> List[str]:
+    """
+    Build a list of months going backwards from an anchor month.
+
+    Example:
+        yyyymm = "202509", prev_n = 3
+        → ["202509", "202508", "202507"]
+
+    Parameters
+    ----------
+    yyyymm : str
+        Anchor month, e.g. '202509'.
+    prev_n : int
+        Total number of months to generate (must be >= 1).
+
+    Returns
+    -------
+    List[str]
+        Months in 'YYYYMM' format, starting at yyyymm and going backward.
+
+    Raises
+    ------
+    ValueError
+        If prev_n < 1 or yyyymm is invalid.
+    """
+    if prev_n < 1:
+        raise ValueError(f"prev_n must be >= 1, got {prev_n}")
+    base = _parse_yyyymm(yyyymm)
+
+    months: List[str] = []
+    for i in range(prev_n):
+        year = base.year
+        month = base.month - i
+        # Walk back across year boundaries if needed
+        while month <= 0:
+            year -= 1
+            month += 12
+        months.append(f"{year:04d}{month:02d}")
+    return months
+
+
+# ============================================================================
+# Registry row data model
+# ============================================================================
+
+@dataclass(frozen=True)
+class RegistryRow:
+    """
+    One row from the model_use_registry.
+
+    Attributes
+    ----------
+    model_id : str
+        Model identifier.
+    bus_area : str
+        Business area identifier.
+    metric : str
+        Metric identifier (e.g. 'PSI', 'SD').
+    active : Optional[bool]
+        True/False if specified, otherwise None if unspecified/blank.
+    start_yyyymm : Optional[str]
+        Optional lower bound (inclusive) on months to process, in 'YYYYMM'.
+    end_yyyymm : Optional[str]
+        Optional upper bound (inclusive) on months to process, in 'YYYYMM'.
+    """
+    model_id: str
+    bus_area: str
+    metric: str
+    active: Optional[bool] = None
+    start_yyyymm: Optional[str] = None
+    end_yyyymm: Optional[str] = None
+
+
+# ============================================================================
+# Registry helpers
+# ============================================================================
+
+def _normalize_bool(val) -> Optional[bool]:
+    """
+    Convert common truthy/falsey values to bool; leave others as None.
+
+    Examples treated as True:
+        1, "1", "true", "y", "yes"
+
+    Examples treated as False:
+        0, "0", "false", "n", "no"
+
+    Anything else (including blanks / NaN) → None.
+    """
+    if val is None or (isinstance(val, float) and pd.isna(val)):
+        return None
+    if isinstance(val, bool):
+        return val
+
+    s = str(val).strip().lower()
+    if s in {"1", "true", "y", "yes"}:
+        return True
+    if s in {"0", "false", "n", "no"}:
+        return False
+    return None
+
+
+def _normalize_yyyymm_field(val) -> Optional[str]:
+    """
+    Normalize optional 'start_yyyymm' / 'end_yyyymm' fields.
+
+    - NaN / None / blank → None
+    - Otherwise, strip and return as 'YYYYMM' string.
+
+    This function does not validate the format itself; it assumes
+    the registry is reasonably clean.
+    """
+    if val is None or (isinstance(val, float) and pd.isna(val)):
+        return None
+    s = str(val).strip()
+    return s or None  # empty string → None
+
+
+def load_model_use_registry(registry_path: Path) -> List[RegistryRow]:
+    """
+    Load the model_use_registry from CSV or Excel.
+
+    Expected columns (case-insensitive)
+    -----------------------------------
+    Required:
+      - model_id
+      - bus_area
+      - metric
+
+    Optional:
+      - active
+      - start_yyyymm
+      - end_yyyymm
+
+    Parameters
+    ----------
+    registry_path : Path
+        Path to the registry file (.csv, .xlsx, .xls).
+
+    Returns
+    -------
+    List[RegistryRow]
+        Parsed rows from the registry file.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the file does not exist.
+    ValueError
+        If the file format is unsupported or required columns are missing.
+    """
+    if not registry_path.exists():
+        raise FileNotFoundError(f"model_use_registry not found: {registry_path}")
+
+    suffix = registry_path.suffix.lower()
+    if suffix == ".csv":
+        df = pd.read_csv(registry_path)
+    elif suffix in {".xlsx", ".xls"}:
+        df = pd.read_excel(registry_path)
+    else:
+        raise ValueError("Unsupported registry format. Use .csv or .xlsx/.xls")
+
+    # Normalize column names to lower-case for robust matching.
+    df.columns = [c.strip().lower() for c in df.columns]
+
+    for required in ("model_id", "bus_area", "metric"):
+        if required not in df.columns:
+            raise ValueError(f"Registry missing required column: '{required}'")
+
+    rows: List[RegistryRow] = []
+    has_active = "active" in df.columns
+    has_start = "start_yyyymm" in df.columns
+    has_end = "end_yyyymm" in df.columns
+
+    for _, r in df.iterrows():
+        model_id = str(r["model_id"]).strip()
+        bus_area = str(r["bus_area"]).strip()
+        metric = str(r["metric"]).strip()
+
+        active = _normalize_bool(r["active"]) if has_active else None
+        start_yyyymm = _normalize_yyyymm_field(r["start_yyyymm"]) if has_start else None
+        end_yyyymm = _normalize_yyyymm_field(r["end_yyyymm"]) if has_end else None
+
+        rows.append(
+            RegistryRow(
+                model_id=model_id,
+                bus_area=bus_area,
+                metric=metric,
+                active=active,
+                start_yyyymm=start_yyyymm,
+                end_yyyymm=end_yyyymm,
+            )
+        )
+
+    logger.info("Loaded %d rows from registry %s", len(rows), registry_path)
+    return rows
+
+
+def _within_bounds(
+    month: str,
+    start_yyyymm: Optional[str],
+    end_yyyymm: Optional[str],
+) -> bool:
+    """
+    Check if a given month is within [start_yyyymm, end_yyyymm], if provided.
+
+    Assumes all values are 'YYYYMM' strings or None. Because values are
+    zero-padded year+month, lexicographic comparison is safe.
+
+    Parameters
+    ----------
+    month : str
+        Month to check, in 'YYYYMM'.
+    start_yyyymm : Optional[str]
+        Lower bound (inclusive), or None for no lower bound.
+    end_yyyymm : Optional[str]
+        Upper bound (inclusive), or None for no upper bound.
+
+    Returns
+    -------
+    bool
+        True if month is within bounds, False otherwise.
+    """
+    if start_yyyymm and month < start_yyyymm:
+        return False
+    if end_yyyymm and month > end_yyyymm:
+        return False
+    return True
+
+
+# ============================================================================
+# GraphQL path helper
+# ============================================================================
+
+def build_graphql_path(
+    graphql_root: Path,
+    model_id: str,
+    bus_area: str,
+    metric: str,
+    yyyymm: str,
+    *,
+    ext: str = ".graphql",
+) -> Path:
+    """
+    Build the GraphQL file path for a given (model, bus_area, metric, month).
+
+    Layout (flat file, no subdirectories):
+        {graphql_root}/{model_id}_{bus_area}_{metric}_{yyyymm}_data{ext}
+
+    Example
+    -------
+    graphql_root = Path("data_push/graphql")
+    model_id     = "FICO08"
+    bus_area     = "CC"
+    metric       = "PSI"
+    yyyymm       = "202509"
+
+    → data_push/graphql/FICO08_CC_PSI_202509_data.graphql
+    """
+    filename = f"{model_id}_{bus_area}_{metric}_{yyyymm}_data{ext}"
+    return graphql_root / filename
+
+
+# ============================================================================
+# Public runner
+# ============================================================================
+
+def run_from_registry(
+    registry_path: Path,
+    graphql_root: Path,
+    yyyymm: str,
+    prev_n: int,
+    func: Callable[[str, str, str, str, str], None],
+    *,
+    only_active: bool = False,
+    include_models: Optional[Iterable[str]] = None,
+    include_bus_areas: Optional[Iterable[str]] = None,
+    include_metrics: Optional[Iterable[str]] = None,
+    graphql_ext: str = ".graphql",
+    log: Optional[logging.Logger] = None,
+) -> Dict[Tuple[str, str, str], List[str]]:
+    """
+    Run a GraphQL-based batch using the model_use_registry.
+
+    For each (model_id, bus_area, metric) row in the registry, and for each
+    month in [yyyymm, yyyymm-1, ..., total = prev_n], this function:
+
+      1. Builds the GraphQL path using `build_graphql_path(...)`.
+      2. Reads the GraphQL file as text.
+      3. Calls:
+            func(model_id, bus_area, metric, month, graphql_text)
+
+    If *any* error occurs for (row, month):
+      - The exception is logged with traceback.
+      - The remaining months for that row are skipped.
+      - Processing continues with the next row.
+
+    Parameters
+    ----------
+    registry_path : Path
+        Path to registry CSV/Excel.
+    graphql_root : Path
+        Root directory under which GraphQL files are stored.
+    yyyymm : str
+        Anchor month, e.g., '202509'.
+    prev_n : int
+        Total number of months to include (current + previous prev_n-1).
+    func : Callable[[str, str, str, str, str], None]
+        Function to apply to each combination, signature:
+            func(model_id, bus_area, metric, yyyymm, graphql_text) -> None
+    only_active : bool, optional
+        If True, include only rows where active == True.
+    include_models : Iterable[str], optional
+        If provided, restrict to these model_ids.
+    include_bus_areas : Iterable[str], optional
+        If provided, restrict to these bus_areas.
+    include_metrics : Iterable[str], optional
+        If provided, restrict to these metrics.
+    graphql_ext : str, optional
+        GraphQL file extension (default ".graphql").
+    log : logging.Logger, optional
+        Logger to use. If None, uses this module's logger.
+
+    Returns
+    -------
+    Dict[(model_id, bus_area, metric), List[str]]
+        For each triplet, the list of months successfully executed.
+    """
+    global logger
+    log = _ensure_logger_configured(log or logger)
+
+    # Load registry and compute target months
+    rows = load_model_use_registry(registry_path)
+    target_months = get_previous_months(yyyymm, prev_n)
+
+    # Apply row-level filters (models / bus_areas / metrics / active)
+    if include_models is not None:
+        incl_models = {str(m).strip() for m in include_models}
+        rows = [r for r in rows if r.model_id in incl_models]
+
+    if include_bus_areas is not None:
+        incl_bus = {str(b).strip() for b in include_bus_areas}
+        rows = [r for r in rows if r.bus_area in incl_bus]
+
+    if include_metrics is not None:
+        incl_metrics = {str(m).strip() for m in include_metrics}
+        rows = [r for r in rows if r.metric in incl_metrics]
+
+    if only_active:
+        rows = [r for r in rows if r.active is True]
+
+    log.info(
+        "Starting registry run: rows=%d, anchor=%s, prev_n=%d, graphql_root=%s",
+        len(rows),
+        yyyymm,
+        prev_n,
+        graphql_root,
+    )
+
+    executed: Dict[Tuple[str, str, str], List[str]] = {}
+
+    for r in rows:
+        key = (r.model_id, r.bus_area, r.metric)
+        executed_months: List[str] = []
+
+        log.info(
+            "Processing row: model_id=%s, bus_area=%s, metric=%s, bounds=[%s, %s]",
+            r.model_id,
+            r.bus_area,
+            r.metric,
+            r.start_yyyymm or "-∞",
+            r.end_yyyymm or "+∞",
+        )
+
+        for m in target_months:
+            # Check month-level bounds for this row
+            if not _within_bounds(m, r.start_yyyymm, r.end_yyyymm):
+                log.debug(
+                    "Skipping month %s for %s/%s/%s (outside bounds [%s, %s])",
+                    m,
+                    r.model_id,
+                    r.bus_area,
+                    r.metric,
+                    r.start_yyyymm or "-∞",
+                    r.end_yyyymm or "+∞",
+                )
+                continue
+
+            gql_path = build_graphql_path(
+                graphql_root,
+                r.model_id,
+                r.bus_area,
+                r.metric,
+                m,
+                ext=graphql_ext,
+            )
+
+            log.info(
+                "Loading GraphQL for %s/%s/%s at %s from %s",
+                r.model_id,
+                r.bus_area,
+                r.metric,
+                m,
+                gql_path,
+            )
+
+            try:
+                if not gql_path.exists():
+                    raise FileNotFoundError(f"GraphQL file not found: {gql_path}")
+
+                graphql_text = gql_path.read_text(encoding="utf-8")
+
+                # Call user function
+                func(r.model_id, r.bus_area, r.metric, m, graphql_text)
+                executed_months.append(m)
+
+            except Exception:
+                # Log full traceback and skip remaining months for this row
+                log.exception(
+                    "Error while processing %s/%s/%s at %s; "
+                    "skipping remaining months for this row.",
+                    r.model_id,
+                    r.bus_area,
+                    r.metric,
+                    m,
+                )
+                break  # move to next registry row
+
+        executed[key] = executed_months
+
+    log.info("Registry run completed.")
+    return executed
+
+
+# ============================================================================
+# Example wiring for manual testing
+# ============================================================================
+
+def _example_push_func(
+    model_id: str,
+    bus_area: str,
+    metric: str,
+    yyyymm: str,
+    graphql_text: str,
+) -> None:
+    """
+    Example adapter that would call your real push logic.
+
+    For real usage, you might:
+      - build an HTTP request to your GraphQL endpoint
+      - attach auth headers
+      - send graphql_text as the 'query' (or 'mutation') field
+
+    Here we just log a small snippet.
+    """
+    snippet = graphql_text.replace("\n", " ")[:80]
+    logger.info(
+        "PUSH → %s/%s/%s/%s | GraphQL snippet: %s%s",
+        model_id,
+        bus_area,
+        metric,
+        yyyymm,
+        snippet,
+        "..." if len(graphql_text) > 80 else "",
+    )
+
+
+if __name__ == "__main__":
+    # Simple smoke test example (adjust paths for your environment)
+    run_from_registry(
+        registry_path=Path("metadata/model_use_registry.csv"),
+        graphql_root=Path("data_push/graphql"),
+        yyyymm="202509",
+        prev_n=3,
+        func=_example_push_func,
+        only_active=True,
+        # include_models=["FICO08"],   # optional narrowing
+        # include_bus_areas=["CC"],
+        # include_metrics=["PSI", "SD"],
+    )
+
